@@ -80,11 +80,18 @@ def init_db():
         CREATE TABLE IF NOT EXISTS bot_config (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             workflow TEXT NOT NULL,
+            executable TEXT,
             welcome_message TEXT,
             updated_at TEXT NOT NULL
         )
     """)
-
+    
+    # Migrar: agregar columna executable si no existe (para bases antiguas)
+    try:
+        cursor.execute("SELECT executable FROM bot_config LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE bot_config ADD COLUMN executable TEXT")
+    
     # Insertar workflow por defecto si no existe
     cursor.execute("SELECT COUNT(*) FROM bot_config")
     if cursor.fetchone()[0] == 0:
@@ -135,9 +142,9 @@ def init_db():
         }
         now = datetime.now().isoformat()
         cursor.execute("""
-            INSERT INTO bot_config (id, workflow, welcome_message, updated_at)
-            VALUES (1, ?, ?, ?)
-        """, (json.dumps(default_workflow), default_workflow["welcome"]["message"], now))
+            INSERT INTO bot_config (id, workflow, executable, welcome_message, updated_at)
+            VALUES (1, ?, ?, ?, ?)
+        """, (json.dumps(default_workflow), json.dumps(default_workflow), default_workflow["welcome"]["message"], now))
 
     conn.commit()
     conn.close()
@@ -212,19 +219,19 @@ def get_conversation_state(phone_number: str) -> Dict:
     if not row:
         now = datetime.now().isoformat()
         cursor.execute("""
-            INSERT INTO conversation_states (phone_number, state, context, updated_at)
-            VALUES (?, 'welcome', '{}', ?)
+            INSERT INTO conversation_states (phone_number, state, current_node, context, updated_at)
+            VALUES (?, 'active', NULL, '{}', ?)
         """, (phone_number, now))
         conn.commit()
         conn.close()
-        return {"phone_number": phone_number, "state": "welcome", "context": "{}", "human_handoff": 0}
+        return {"phone_number": phone_number, "state": "active", "current_node": None, "context": "{}", "human_handoff": 0}
 
     conn.close()
     return dict(row)
 
 
-def update_conversation_state(phone_number: str, state: str, context: dict = None, human_handoff: int = None):
-    """Actualiza el estado de una conversación."""
+def update_conversation_state(phone_number: str, current_node: str, context: dict = None, human_handoff: int = None):
+    """Actualiza el estado de una conversación (usa current_node en vez de state)."""
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -233,23 +240,23 @@ def update_conversation_state(phone_number: str, state: str, context: dict = Non
 
     if human_handoff is not None:
         cursor.execute("""
-            INSERT INTO conversation_states (phone_number, state, context, updated_at, human_handoff)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO conversation_states (phone_number, state, current_node, context, updated_at, human_handoff)
+            VALUES (?, 'active', ?, ?, ?, ?)
             ON CONFLICT(phone_number) DO UPDATE SET
-                state = excluded.state,
+                current_node = excluded.current_node,
                 context = excluded.context,
                 updated_at = excluded.updated_at,
                 human_handoff = excluded.human_handoff
-        """, (phone_number, state, ctx, now, human_handoff))
+        """, (phone_number, current_node, ctx, now, human_handoff))
     else:
         cursor.execute("""
-            INSERT INTO conversation_states (phone_number, state, context, updated_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO conversation_states (phone_number, state, current_node, context, updated_at)
+            VALUES (?, 'active', ?, ?, ?)
             ON CONFLICT(phone_number) DO UPDATE SET
-                state = excluded.state,
+                current_node = excluded.current_node,
                 context = excluded.context,
                 updated_at = excluded.updated_at
-        """, (phone_number, state, ctx, now))
+        """, (phone_number, current_node, ctx, now))
 
     conn.commit()
     conn.close()
@@ -397,7 +404,8 @@ def mark_conversation_as_read(phone_number: str):
 # ========== CONFIGURACIÓN DEL BOT ==========
 
 def get_bot_config() -> Dict:
-    """Obtiene la configuración del bot (workflow)."""
+    """Obtiene la configuración del bot (visual + ejecutable)."""
+    import json
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -406,31 +414,45 @@ def get_bot_config() -> Dict:
     conn.close()
     
     if row:
-        import json
+        visual = json.loads(row["workflow"]) if row["workflow"] else {}
+        executable = json.loads(row["executable"]) if row.get("executable") else {}
         return {
-            "workflow": json.loads(row["workflow"]),
+            "visual": visual,
+            "executable": executable,
             "welcome_message": row["welcome_message"],
             "updated_at": row["updated_at"]
         }
-    return {"workflow": {}, "welcome_message": "", "updated_at": ""}
+    return {"visual": {}, "executable": {}, "welcome_message": "", "updated_at": ""}
 
 
-def save_bot_config(workflow: dict, welcome_message: str = None):
-    """Guarda la configuración del bot."""
+def save_bot_config(visual: dict = None, executable: dict = None, welcome_message: str = None):
+    """Guarda la configuración del bot (ambos formatos)."""
     import json
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
     now = datetime.now().isoformat()
-    wm = welcome_message or workflow.get("welcome", {}).get("message", "")
+    
+    # Obtener config actual para merge
+    cursor.execute("SELECT workflow, executable, welcome_message FROM bot_config WHERE id = 1")
+    row = cursor.fetchone()
+    
+    current_visual = json.loads(row[0]) if row and row[0] else {}
+    current_executable = json.loads(row[1]) if row and row[1] else {}
+    current_welcome = row[2] if row and row[2] else ""
+    
+    visual_data = json.dumps(visual) if visual else json.dumps(current_visual)
+    executable_data = json.dumps(executable) if executable else json.dumps(current_executable)
+    welcome = welcome_message or current_welcome
     
     cursor.execute("""
-        INSERT INTO bot_config (id, workflow, welcome_message, updated_at)
-        VALUES (1, ?, ?, ?)
+        INSERT INTO bot_config (id, workflow, executable, welcome_message, updated_at)
+        VALUES (1, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             workflow = excluded.workflow,
+            executable = excluded.executable,
             welcome_message = excluded.welcome_message,
             updated_at = excluded.updated_at
-    """, (json.dumps(workflow), wm, now))
+    """, (visual_data, executable_data, welcome, now))
     
     conn.commit()
     conn.close()

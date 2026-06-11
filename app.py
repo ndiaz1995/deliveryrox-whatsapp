@@ -12,6 +12,7 @@ from database import (
 )
 from chatbot import DMARBot
 from database import get_bot_config, save_bot_config
+from workflow_engine import serialize_workflow, deserialize_workflow, validate_workflow
 
 # Carga variables de entorno
 load_dotenv()
@@ -121,23 +122,42 @@ def api_reset(phone_number):
 
 @app.route("/api/config", methods=["GET"])
 def api_get_config():
-    """Obtiene la configuración actual del bot."""
-    return jsonify(get_bot_config())
+    """Obtiene la configuración actual del bot (visual + ejecutable)."""
+    config = get_bot_config()
+    return jsonify(config)
 
 
 @app.route("/api/config", methods=["POST"])
 def api_save_config():
-    """Guarda la configuración del bot."""
+    """
+    Guarda la configuración del bot.
+    Recibe formato visual {nodes, connections}, lo serializa a ejecutable,
+    valida y guarda ambos formatos.
+    """
     data = request.json or {}
-    workflow = data.get("workflow")
-    welcome_message = data.get("welcome_message")
     
-    if not workflow:
-        return jsonify({"error": "Workflow es requerido"}), 400
+    # Puede recibir formato visual o ejecutable directo
+    visual = data.get("visual")
+    executable = data.get("executable")
     
-    save_bot_config(workflow, welcome_message)
+    if visual:
+        # Serializar visual → ejecutable
+        nodes = visual.get("nodes", [])
+        connections = visual.get("connections", [])
+        executable = serialize_workflow(nodes, connections)
+    
+    if not executable:
+        return jsonify({"error": "Se requiere 'visual' o 'executable'"}), 400
+    
+    # Validar
+    is_valid, error_msg = validate_workflow(executable)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
+    
+    # Guardar
+    save_bot_config(visual=visual, executable=executable)
     bot.reload()  # Recargar en memoria
-    return jsonify({"success": True})
+    return jsonify({"success": True, "start_node": executable.get("start_node")})
 
 
 @app.route("/api/health")
