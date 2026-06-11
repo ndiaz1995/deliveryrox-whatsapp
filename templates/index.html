@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 DeliveryRox - Centro de Mando WhatsApp</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🤖 DeliveryRox Centro de Mando</h1>
+            <p>WhatsApp Business API - Escucha Activa</p>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-number" id="stat-contacts">{{ stats.total_contacts }}</div>
+                <div class="stat-label">Contactos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div class="stat-number" id="stat-messages">{{ stats.total_messages }}</div>
+                <div class="stat-label">Mensajes Recibidos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔔</div>
+                <div class="stat-number" id="stat-unread">{{ stats.unread_conversations }}</div>
+                <div class="stat-label">Sin Leer</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-number" id="stat-today">{{ stats.messages_today }}</div>
+                <div class="stat-label">Hoy (24h)</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Conversations List -->
+            <div class="panel conversations-panel">
+                <h2>📨 Conversaciones</h2>
+                <div class="conversations-list" id="conversations-list">
+                    {% for conv in conversations %}
+                    <div class="conversation-item {% if conv.unread_count > 0 %}unread{% endif %}" 
+                         data-phone="{{ conv.phone_number }}"
+                         onclick="loadChat('{{ conv.phone_number }}')">
+                        <div class="conversation-avatar">
+                            {{ (conv.profile_name or conv.phone_number)[0] if (conv.profile_name or conv.phone_number) else '?' }}
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-header">
+                                <span class="conversation-name">
+                                    {{ conv.profile_name or conv.phone_number }}
+                                </span>
+                                <span class="conversation-time">
+                                    {{ conv.last_message_time[:16] if conv.last_message_time else '' }}
+                                </span>
+                            </div>
+                            <div class="conversation-preview">
+                                {{ conv.last_message[:50] if conv.last_message else '' }}{% if conv.last_message and conv.last_message|length > 50 %}...{% endif %}
+                            </div>
+                        </div>
+                        {% if conv.unread_count > 0 %}
+                        <span class="unread-badge">{{ conv.unread_count }}</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <p>📭 No hay conversaciones aún</p>
+                        <p>Los mensajes aparecerán aquí cuando alguien te escriba</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Chat Panel -->
+            <div class="panel chat-panel">
+                <div class="chat-header" id="chat-header">
+                    <span>Selecciona una conversación</span>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="empty-chat">
+                        <p>👈 Selecciona una conversación para ver los mensajes</p>
+                    </div>
+                </div>
+                <div class="chat-input-area" id="chat-input" style="display: none;">
+                    <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
+                           onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()">📤 Enviar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Log -->
+        <div class="panel log-panel">
+            <h2>📡 Log en Vivo</h2>
+            <div class="log-container" id="live-log">
+                <p class="log-entry info">🚀 Centro de mando iniciado. Esperando mensajes...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPhone = null;
+        let currentProfileName = null;
+
+        // Auto-refresh cada 3 segundos
+        setInterval(refreshData, 3000);
+
+        function refreshData() {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(stats => {
+                    document.getElementById('stat-contacts').textContent = stats.total_contacts;
+                    document.getElementById('stat-messages').textContent = stats.total_messages;
+                    document.getElementById('stat-unread').textContent = stats.unread_conversations;
+                    document.getElementById('stat-today').textContent = stats.messages_today;
+                });
+
+            fetch('/api/conversations')
+                .then(r => r.json())
+                .then(conversations => {
+                    updateConversationsList(conversations);
+                });
+        }
+
+        function updateConversationsList(conversations) {
+            const container = document.getElementById('conversations-list');
+            
+            if (conversations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>📭 No hay conversaciones aún</p>
+                        <p>Los mensajes aparecerán aquí cuando alguien te escriba</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = conversations.map(conv => `
+                <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''}" 
+                     data-phone="${conv.phone_number}"
+                     onclick="loadChat('${conv.phone_number}', '${conv.profile_name || ''}')">
+                    <div class="conversation-avatar">
+                        ${(conv.profile_name || conv.phone_number)[0] || '?'}
+                    </div>
+                    <div class="conversation-info">
+                        <div class="conversation-header">
+                            <span class="conversation-name">
+                                ${conv.profile_name || conv.phone_number}
+                            </span>
+                            <span class="conversation-time">
+                                ${conv.last_message_time ? conv.last_message_time.substring(0, 16) : ''}
+                            </span>
+                        </div>
+                        <div class="conversation-preview">
+                            ${conv.last_message ? conv.last_message.substring(0, 50) : ''}
+                            ${conv.last_message && conv.last_message.length > 50 ? '...' : ''}
+                        </div>
+                    </div>
+                    ${conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function loadChat(phone, profileName) {
+            currentPhone = phone;
+            currentProfileName = profileName || phone;
+
+            // Marcar como leído
+            fetch(`/api/read/${phone}`, { method: 'POST' });
+
+            // Actualizar header
+            document.getElementById('chat-header').innerHTML = `
+                <span>💬 ${currentProfileName}</span>
+                <small>${phone}</small>
+            `;
+
+            // Mostrar input
+            document.getElementById('chat-input').style.display = 'flex';
+
+            // Cargar mensajes
+            fetch(`/api/messages/${phone}`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('chat-messages');
+                    const messages = data.messages || [];
+                    
+                    if (messages.length === 0) {
+                        container.innerHTML = '<div class="empty-chat"><p>Sin mensajes</p></div>';
+                        return;
+                    }
+
+                    container.innerHTML = messages.reverse().map(msg => `
+                        <div class="message ${msg.direction}">
+                            <div class="message-content">${escapeHtml(msg.content)}</div>
+                            <div class="message-time">${msg.timestamp ? msg.timestamp.substring(11, 16) : ''}</div>
+                        </div>
+                    `).join('');
+
+                    container.scrollTop = container.scrollHeight;
+                });
+
+            // Quitar badge de unread visualmente
+            const item = document.querySelector(`[data-phone="${phone}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                const badge = item.querySelector('.unread-badge');
+                if (badge) badge.remove();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || !currentPhone) return;
+
+            fetch('/api/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone_number: currentPhone, message: message })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    loadChat(currentPhone, currentProfileName);
+                    addLog(`✅ Mensaje enviado a ${currentProfileName}`, 'success');
+                } else {
+                    addLog(`❌ Error: ${data.error}`, 'error');
+                }
+            })
+            .catch(err => {
+                addLog(`❌ Error de red: ${err}`, 'error');
+            });
+        }
+
+        function addLog(text, type = 'info') {
+            const log = document.getElementById('live-log');
+            const entry = document.createElement('p');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            // Mantener solo últimos 50 logs
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // WebSocket simulation via polling for new messages
+        let lastMessageCount = 0;
+        setInterval(() => {
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(stats => {
+                    if (stats.total_messages > lastMessageCount && lastMessageCount > 0) {
+                        addLog('📩 Nuevo mensaje recibido!', 'new');
+                        if (currentPhone) loadChat(currentPhone, currentProfileName);
+                    }
+                    lastMessageCount = stats.total_messages;
+                });
+        }, 3000);
+    </script>
+</body>
+</html>
