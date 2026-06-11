@@ -125,6 +125,7 @@ def api_reset(phone_number):
 def api_get_config():
     """Obtiene la configuración actual del bot (visual + ejecutable)."""
     config = get_bot_config()
+    print(f"[LOAD-CONFIG] GET /api-config - visual_nodes={len(config.get('visual', {}).get('nodes', [])) if config.get('visual') else 0}, executable_nodes={len(config.get('executable', {}).get('nodes', {})) if config.get('executable') else 0}")
     return jsonify(config)
 
 
@@ -136,6 +137,7 @@ def api_save_config():
     valida y guarda ambos formatos.
     """
     data = request.json or {}
+    print(f"[SAVE-CONFIG] Recibido POST /api/config")
     
     # Puede recibir formato visual o ejecutable directo
     visual = data.get("visual")
@@ -145,6 +147,7 @@ def api_save_config():
         # Serializar visual → ejecutable
         nodes = visual.get("nodes", [])
         connections = visual.get("connections", [])
+        print(f"[SAVE-CONFIG] Serializando {len(nodes)} nodos, {len(connections)} conexiones")
         executable = serialize_workflow(nodes, connections)
     
     if not executable:
@@ -153,11 +156,15 @@ def api_save_config():
     # Validar
     is_valid, error_msg = validate_workflow(executable)
     if not is_valid:
+        print(f"[SAVE-CONFIG] VALIDACION FALLIDA: {error_msg}")
         return jsonify({"error": error_msg}), 400
+    
+    print(f"[SAVE-CONFIG] Workflow valido. start_node={executable.get('start_node')}, nodes={list(executable.get('nodes', {}).keys())}")
     
     # Guardar
     save_bot_config(visual=visual, executable=executable)
     bot.reload()  # Recargar en memoria
+    print(f"[SAVE-CONFIG] Guardado OK. Bot recargado.")
     return jsonify({"success": True, "start_node": executable.get("start_node")})
 
 
