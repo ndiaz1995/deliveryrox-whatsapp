@@ -140,6 +140,56 @@ def api_health():
 
 
 # ============================================================
+# ENDPOINT DE PRUEBA DIRECTA (para diagnosticar envíos)
+# ============================================================
+@app.route("/api/send-test", methods=["GET", "POST"])
+def api_send_test():
+    """
+    Endpoint simple para probar envíos directamente.
+    GET: /api/send-test?phone=584120521377&message=Hola
+    POST: JSON con phone y message
+    """
+    if request.method == "GET":
+        phone_number = request.args.get("phone", "").strip()
+        message = request.args.get("message", "").strip()
+    else:
+        data = request.json or {}
+        phone_number = data.get("phone", "").strip()
+        message = data.get("message", "").strip()
+    
+    if not phone_number or not message:
+        return jsonify({"error": "Faltan parametros phone y message"}), 400
+    
+    token = os.getenv("WHATSAPP_TOKEN")
+    phone_id = os.getenv("PHONE_NUMBER_ID")
+    
+    print(f"\n🧪 TEST ENVIO:")
+    print(f"   📱 Destino: {phone_number}")
+    print(f"   💬 Mensaje: {message}")
+    print(f"   🔑 Token configurado: {bool(token)} (length: {len(token) if token else 0})")
+    print(f"   📞 Phone ID: {phone_id}")
+    
+    if not token or not phone_id:
+        return jsonify({
+            "error": "Falta configuracion",
+            "token_configured": bool(token),
+            "phone_id_configured": bool(phone_id)
+        }), 500
+    
+    try:
+        from whatsapp_client import WhatsAppClient
+        client = WhatsAppClient()
+        result = client.send_text_message(phone_number, message)
+        print(f"   ✅ ENVIADO EXITOSAMENTE")
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        print(f"   ❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================
 # WEBHOOK - RECIBIR MENSAJES DE META
 # ============================================================
 @app.route("/webhook", methods=["GET"])
