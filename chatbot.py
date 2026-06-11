@@ -28,6 +28,10 @@ class DMARBot:
         self.start_node = workflow.get("start_node", "")
         self.nodes = workflow.get("nodes", {})
         
+        print(f"[BOT] Workflow cargado: start_node={self.start_node}, nodos={len(self.nodes)}")
+        if self.nodes:
+            print(f"[BOT] Nodos: {list(self.nodes.keys())}")
+        
         if not self.nodes:
             # Fallback por defecto
             self.start_node = "welcome"
@@ -232,30 +236,22 @@ class DMARBot:
         
         return content
 
-    def _chain_messages(self, node_id: str, context: dict, accumulated: str) -> str:
+    def _chain_messages(self, node_id: str, context: dict, accumulated: str) -> Tuple[str, None]:
         """
         Si un mensaje va a otro mensaje, encadena las respuestas.
         Evita enviar 3 mensajes separados cuando hay 3 mensajes seguidos.
         """
         node = self.nodes.get(node_id)
         if not node:
-            return accumulated
+            return accumulated, None
         
         if node.get('type') in ['message', 'start']:
             # Encadenar contenido
             content = self._render_content(node.get('content', ''), context)
             accumulated += "\n\n" + content
-            
-            # Avanzar al siguiente
-            next_node = node.get('next')
-            if next_node:
-                # Actualizar estado para que apunte al siguiente
-                # Pero no podemos acceder a phone_number aquí...
-                # Por ahora solo encadenamos 1 nivel
-                pass
-            return accumulated
+            return accumulated, None
         
-        return accumulated
+        return accumulated, None
 
     def _render_content(self, content: str, context: dict) -> str:
         """Reemplaza variables {{nombre}} en el contenido."""

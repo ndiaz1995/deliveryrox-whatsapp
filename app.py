@@ -107,8 +107,9 @@ def api_handoff(phone_number):
     data = request.json or {}
     active = data.get("active", True)
     state = get_conversation_state(phone_number)
+    current_node = state.get('current_node') or bot.start_node
     update_conversation_state(
-        phone_number, state['state'], {}, human_handoff=1 if active else 0
+        phone_number, current_node, {}, human_handoff=1 if active else 0
     )
     return jsonify({"success": True, "human_handoff": active})
 

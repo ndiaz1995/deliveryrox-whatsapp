@@ -5,16 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D'MAR - Centro de Mando</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
     <div class="app">
         <!-- SIDEBAR -->
         <aside class="sidebar">
-            <div class="sidebar-logo">🛵</div>
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-label="Chat" onclick="showView('chat', this)">💬</a>
-                <a href="#" class="nav-item" data-label="Flujo del Bot" onclick="showView('config', this)">🧩</a>
-            </nav>
+            <div class="sidebar-inner">
+                <div class="sidebar-logo">
+                    <i class="bi bi-scooter"></i>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-label="Chat" onclick="showView('chat', this)">
+                        <i class="bi bi-chat-dots-fill"></i>
+                        <span>Chat</span>
+                    </a>
+                    <a href="#" class="nav-item" data-label="Flujo" onclick="showView('config', this)">
+                        <i class="bi bi-diagram-3-fill"></i>
+                        <span>Flujo</span>
+                    </a>
+                </nav>
+            </div>
         </aside>
 
         <!-- MAIN -->
@@ -115,17 +126,17 @@
                     <div class="wf-toolbar">
                         <div class="wf-toolbar-group">
                             <span class="wf-toolbar-label">Agregar nodo:</span>
-                            <button class="wf-btn wf-btn-start" onclick="editor.addNode('start')">🏁 Inicio</button>
-                            <button class="wf-btn wf-btn-message" onclick="editor.addNode('message')">💬 Mensaje</button>
-                            <button class="wf-btn wf-btn-input" onclick="editor.addNode('input')">❓ Pregunta</button>
-                            <button class="wf-btn wf-btn-options" onclick="editor.addNode('options')">☰ Menú</button>
-                            <button class="wf-btn wf-btn-condition" onclick="editor.addNode('condition')">⚡ Condición</button>
-                            <button class="wf-btn wf-btn-action" onclick="editor.addNode('action')">⚙️ Acción</button>
+                            <button class="wf-btn wf-btn-start" onclick="editor.addNode('start')"><i class="bi bi-flag-fill"></i> Inicio</button>
+                            <button class="wf-btn wf-btn-message" onclick="editor.addNode('message')"><i class="bi bi-chat-text-fill"></i> Mensaje</button>
+                            <button class="wf-btn wf-btn-input" onclick="editor.addNode('input')"><i class="bi bi-question-circle-fill"></i> Pregunta</button>
+                            <button class="wf-btn wf-btn-options" onclick="editor.addNode('options')"><i class="bi bi-list-ul"></i> Menú</button>
+                            <button class="wf-btn wf-btn-condition" onclick="editor.addNode('condition')"><i class="bi bi-lightning-fill"></i> Condición</button>
+                            <button class="wf-btn wf-btn-action" onclick="editor.addNode('action')"><i class="bi bi-gear-fill"></i> Acción</button>
                         </div>
                         <div class="wf-toolbar-group">
-                            <button class="wf-btn-save" onclick="editor.save()">💾 Guardar</button>
-                            <button class="wf-btn-load" onclick="editor.load()">↻ Recargar</button>
-                            <button class="wf-btn-reset" onclick="editor.reset()">🔄 Default</button>
+                            <button class="wf-btn-save" onclick="editor.save()"><i class="bi bi-save-fill"></i> Guardar</button>
+                            <button class="wf-btn-load" onclick="editor.load()"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+                            <button class="wf-btn-reset" onclick="editor.reset()"><i class="bi bi-arrow-counterclockwise"></i> Default</button>
                         </div>
                     </div>
 
