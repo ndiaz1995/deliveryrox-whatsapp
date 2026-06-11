@@ -11,6 +11,7 @@ from database import (
     get_orders_by_phone
 )
 from chatbot import DMARBot
+from database import get_bot_config, save_bot_config
 
 # Carga variables de entorno
 load_dotenv()
@@ -115,6 +116,27 @@ def api_handoff(phone_number):
 def api_reset(phone_number):
     """Reinicia el estado del bot para un número."""
     bot.reset_state(phone_number)
+    return jsonify({"success": True})
+
+
+@app.route("/api/config", methods=["GET"])
+def api_get_config():
+    """Obtiene la configuración actual del bot."""
+    return jsonify(get_bot_config())
+
+
+@app.route("/api/config", methods=["POST"])
+def api_save_config():
+    """Guarda la configuración del bot."""
+    data = request.json or {}
+    workflow = data.get("workflow")
+    welcome_message = data.get("welcome_message")
+    
+    if not workflow:
+        return jsonify({"error": "Workflow es requerido"}), 400
+    
+    save_bot_config(workflow, welcome_message)
+    bot.reload()  # Recargar en memoria
     return jsonify({"success": True})
 
 

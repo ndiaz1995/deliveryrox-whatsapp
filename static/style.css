@@ -229,8 +229,9 @@ html, body {
    ============================================================ */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
+    max-width: 900px;
 }
 
 .stat-card {
@@ -670,6 +671,139 @@ html, body {
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ============================================================
+   CONFIGURACIÓN DEL BOT
+   ============================================================ */
+.config-container {
+    padding: 28px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.config-header {
+    margin-bottom: 24px;
+}
+
+.config-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 6px;
+}
+
+.config-header p {
+    font-size: 14px;
+    color: var(--gray-500);
+}
+
+.config-editor {
+    margin-bottom: 20px;
+}
+
+.config-editor textarea {
+    width: 100%;
+    height: 500px;
+    padding: 20px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    background: var(--gray-900);
+    color: #a5d6a7;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+}
+
+.config-editor textarea:focus {
+    border-color: var(--sky-400);
+    box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.1);
+}
+
+.config-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.btn-primary {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--sky-500), var(--sky-700));
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 14px rgba(0, 188, 212, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 188, 212, 0.35);
+}
+
+.btn-secondary {
+    padding: 12px 24px;
+    border: 1px solid var(--gray-300);
+    border-radius: 10px;
+    background: var(--white);
+    color: var(--gray-700);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+}
+
+.config-help {
+    background: var(--sky-50);
+    border: 1px solid var(--sky-200);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+}
+
+.config-help h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 12px;
+}
+
+.config-help ul {
+    list-style: none;
+    padding: 0;
+}
+
+.config-help li {
+    font-size: 13px;
+    color: var(--gray-600);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--sky-100);
+}
+
+.config-help li:last-child { border-bottom: none; }
+
+.config-help b {
+    color: var(--sky-700);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
 @media (max-width: 1100px) {
     .stats-grid { grid-template-columns: repeat(3, 1fr); }
     .chat-layout { grid-template-columns: 280px 1fr; }
@@ -679,5 +813,6 @@ html, body {
     .app { grid-template-columns: 1fr; }
     .sidebar { display: none; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .chat-layout { grid-template-columns: 1fr; grid-template-rows: 45% 1fr; }
+    .chat-layout { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; }
+    .config-container { padding: 16px; }
 }

@@ -75,6 +75,70 @@ def init_db():
         )
     """)
 
+    # Tabla de configuración del bot (workflow)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bot_config (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            workflow TEXT NOT NULL,
+            welcome_message TEXT,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    # Insertar workflow por defecto si no existe
+    cursor.execute("SELECT COUNT(*) FROM bot_config")
+    if cursor.fetchone()[0] == 0:
+        import json
+        default_workflow = {
+            "welcome": {
+                "message": "🛵 *¡Bienvenido a D'MAR!*\n(Delivery Máxima Atención Rider)\n\nGracias por comunicarte con nosotros. 😁\n¿Cómo podemos ayudarte hoy?",
+                "options": [
+                    {"id": "order", "label": "🛍️ Hacer un pedido", "next": "ask_address"},
+                    {"id": "track", "label": "📦 Consultar pedido", "next": "ask_order_code"},
+                    {"id": "human", "label": "💬 Hablar con humano", "action": "handoff"}
+                ]
+            },
+            "ask_address": {
+                "message": "📍 *¿A qué dirección te lo llevamos?*\n\n_Ej: Av. Principal, Edificio Sol, Piso 3_",
+                "next": "ask_product",
+                "save_as": "address"
+            },
+            "ask_product": {
+                "message": "🍕 *¿Qué necesitas pedir?*\n\n_Ej: 2 hamburguesas con papas y 1 refresco_",
+                "next": "confirm_order",
+                "save_as": "product"
+            },
+            "confirm_order": {
+                "message": "📋 *Resumen de tu pedido:*\n\n📍 *Dirección:* {{address}}\n🛍️ *Pedido:* {{product}}\n\n¿Todo correcto?",
+                "options": [
+                    {"id": "yes", "label": "✅ Sí, confirmar", "action": "create_order"},
+                    {"id": "no", "label": "❌ No, cancelar", "next": "welcome"}
+                ]
+            },
+            "ask_order_code": {
+                "message": "📦 *Consulta de pedido*\n\nIngresa tu *número de pedido* 🔢\n_Ej: DMR240610143022_",
+                "next": "show_order_status",
+                "save_as": "order_code"
+            },
+            "show_order_status": {
+                "message": "🔍 Buscando pedido...",
+                "action": "show_order"
+            },
+            "order_created": {
+                "message": "🎉 *¡Pedido confirmado!*\n\nTu número de pedido es: *#{{order_code}}*\n\n📍 {{address}}\n🛍️ {{product}}\n\n⏱️ Te avisaremos cuando tu rider esté en camino.",
+                "next": "welcome"
+            },
+            "order_not_found": {
+                "message": "❌ *No encontré ese pedido.*\n\nVerifica el número e intenta de nuevo.\n_O dime *menu* para volver al inicio._",
+                "next": "ask_order_code"
+            }
+        }
+        now = datetime.now().isoformat()
+        cursor.execute("""
+            INSERT INTO bot_config (id, workflow, welcome_message, updated_at)
+            VALUES (1, ?, ?, ?)
+        """, (json.dumps(default_workflow), default_workflow["welcome"]["message"], now))
+
     conn.commit()
     conn.close()
 
@@ -326,6 +390,48 @@ def mark_conversation_as_read(phone_number: str):
     cursor = conn.cursor()
     cursor.execute("UPDATE messages SET status = 'read' WHERE phone_number = ? AND status = 'new'", (phone_number,))
     cursor.execute("UPDATE conversations SET unread_count = 0 WHERE phone_number = ?", (phone_number,))
+    conn.commit()
+    conn.close()
+
+
+# ========== CONFIGURACIÓN DEL BOT ==========
+
+def get_bot_config() -> Dict:
+    """Obtiene la configuración del bot (workflow)."""
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM bot_config WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        import json
+        return {
+            "workflow": json.loads(row["workflow"]),
+            "welcome_message": row["welcome_message"],
+            "updated_at": row["updated_at"]
+        }
+    return {"workflow": {}, "welcome_message": "", "updated_at": ""}
+
+
+def save_bot_config(workflow: dict, welcome_message: str = None):
+    """Guarda la configuración del bot."""
+    import json
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    wm = welcome_message or workflow.get("welcome", {}).get("message", "")
+    
+    cursor.execute("""
+        INSERT INTO bot_config (id, workflow, welcome_message, updated_at)
+        VALUES (1, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            workflow = excluded.workflow,
+            welcome_message = excluded.welcome_message,
+            updated_at = excluded.updated_at
+    """, (json.dumps(workflow), wm, now))
+    
     conn.commit()
     conn.close()
 
