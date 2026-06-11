@@ -115,34 +115,32 @@
                     <div class="wf-toolbar">
                         <div class="wf-toolbar-group">
                             <span class="wf-toolbar-label">Agregar nodo:</span>
-                            <button class="wf-btn wf-btn-start" onclick="wf.addNode('start')">🏁 Inicio</button>
-                            <button class="wf-btn wf-btn-message" onclick="wf.addNode('message')">💬 Mensaje</button>
-                            <button class="wf-btn wf-btn-input" onclick="wf.addNode('input')">❓ Pregunta</button>
-                            <button class="wf-btn wf-btn-options" onclick="wf.addNode('options')">☰ Menú</button>
-                            <button class="wf-btn wf-btn-condition" onclick="wf.addNode('condition')">⚡ Condición</button>
-                            <button class="wf-btn wf-btn-action" onclick="wf.addNode('action')">⚙️ Acción</button>
+                            <button class="wf-btn wf-btn-start" onclick="editor.addNode('start')">🏁 Inicio</button>
+                            <button class="wf-btn wf-btn-message" onclick="editor.addNode('message')">💬 Mensaje</button>
+                            <button class="wf-btn wf-btn-input" onclick="editor.addNode('input')">❓ Pregunta</button>
+                            <button class="wf-btn wf-btn-options" onclick="editor.addNode('options')">☰ Menú</button>
+                            <button class="wf-btn wf-btn-condition" onclick="editor.addNode('condition')">⚡ Condición</button>
+                            <button class="wf-btn wf-btn-action" onclick="editor.addNode('action')">⚙️ Acción</button>
                         </div>
                         <div class="wf-toolbar-group">
-                            <button class="wf-btn-save" onclick="wf.save()">💾 Guardar</button>
-                            <button class="wf-btn-load" onclick="wf.load()">↻ Recargar</button>
+                            <button class="wf-btn-save" onclick="editor.save()">💾 Guardar</button>
+                            <button class="wf-btn-load" onclick="editor.load()">↻ Recargar</button>
+                            <button class="wf-btn-reset" onclick="editor.reset()">🔄 Default</button>
                         </div>
                     </div>
 
-                    <!-- CANVAS -->
+                    <!-- CANVAS + PROPERTIES -->
                     <div class="wf-canvas-wrapper">
-                        <div class="wf-canvas" id="wf-canvas">
-                            <svg class="wf-connections" id="wf-connections"></svg>
-                            <div class="wf-nodes" id="wf-nodes"></div>
-                        </div>
-
+                        <div class="wf-canvas" id="wf-canvas"></div>
+                        
                         <!-- PANEL DE PROPIEDADES -->
                         <div class="wf-properties" id="wf-properties">
                             <div class="wf-prop-header">
                                 <h3>✏️ Editar Nodo</h3>
-                                <button class="wf-close-btn" onclick="wf.closeProperties()">✕</button>
+                                <button class="wf-close-btn" onclick="closeProperties()">✕</button>
                             </div>
                             <div class="wf-prop-content" id="wf-prop-content">
-                                <p class="wf-prop-hint">Selecciona un nodo para editarlo</p>
+                                <p class="wf-prop-hint">Haz clic en un nodo para editarlo</p>
                             </div>
                         </div>
                     </div>
@@ -155,16 +153,19 @@
                         <div class="wf-legend-item"><span class="wf-dot options"></span> Menú</div>
                         <div class="wf-legend-item"><span class="wf-dot condition"></span> Condición</div>
                         <div class="wf-legend-item"><span class="wf-dot action"></span> Acción</div>
-                        <div class="wf-legend-hint">🖱️ Arrastra nodos | 🔗 Arrastra desde los puntos para conectar | 🗑️ Doble clic para eliminar</div>
+                        <div class="wf-legend-hint">🖱️ Arrastra nodos | 🔗 Arrastra desde puntos para conectar | 🖱️🖱️ Doble clic para eliminar | 🔄 Scroll para zoom</div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
+    <script src="{{ url_for('static', filename='workflow-editor.js') }}"></script>
     <script>
-        // ========== CHAT JS ==========
+        // ========== CHAT ==========
         let currentPhone = null, currentProfileName = null, currentHandoff = false, lastMessageCount = {{ stats.total_messages }};
+        let editor = null;
+        
         setInterval(refreshData, 3000);
 
         function showView(view, el) {
@@ -172,7 +173,13 @@
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById('view-' + view).style.display = 'block';
             if (el) el.classList.add('active');
-            if (view === 'config') setTimeout(() => wf.load(), 200);
+            if (view === 'config') {
+                if (!editor) {
+                    editor = new WorkflowEditor('wf-canvas');
+                    editor.load();
+                }
+                setTimeout(() => editor._resize(), 100);
+            }
         }
 
         function refreshData() {
@@ -237,376 +244,57 @@
         function resetBot() { if (!currentPhone || !confirm('¿Reiniciar bot?')) return; fetch(`/api/reset/${currentPhone}`, { method: 'POST' }).then(() => loadChat(currentPhone)); }
         function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 
-        // ========== WORKFLOW EDITOR ==========
-        const wf = {
-            nodes: [],
-            connections: [],
-            selectedNode: null,
-            draggingNode: null,
-            connectingFrom: null,
-            dragOffset: { x: 0, y: 0 },
-            nextId: 1,
-            canvas: document.getElementById('wf-canvas'),
-            nodesContainer: document.getElementById('wf-nodes'),
-            svgContainer: document.getElementById('wf-connections'),
-            propertiesPanel: document.getElementById('wf-properties'),
-            propContent: document.getElementById('wf-prop-content'),
+        // ========== PROPIEDADES DEL EDITOR ==========
+        function closeProperties() {
+            document.getElementById('wf-properties').classList.remove('open');
+            if (editor) editor.selectedNode = null;
+        }
 
-            nodeTypes: {
-                start: { label: 'Inicio', color: '#495057', icon: '🏁' },
-                message: { label: 'Mensaje', color: '#00bcd4', icon: '💬' },
-                input: { label: 'Pregunta', color: '#28a745', icon: '❓' },
-                options: { label: 'Menú', color: '#ffc107', colorText: '#333', icon: '☰' },
-                condition: { label: 'Condición', color: '#9c27b0', icon: '⚡' },
-                action: { label: 'Acción', color: '#f44336', icon: '⚙️' }
-            },
-
-            init() {
-                this.canvas.addEventListener('mousedown', e => this.onMouseDown(e));
-                this.canvas.addEventListener('mousemove', e => this.onMouseMove(e));
-                this.canvas.addEventListener('mouseup', e => this.onMouseUp(e));
-                this.canvas.addEventListener('dblclick', e => this.onDoubleClick(e));
-                document.addEventListener('keydown', e => { if (e.key === 'Delete' && this.selectedNode) this.deleteNode(this.selectedNode.id); });
-            },
-
-            addNode(type, x, y) {
-                const info = this.nodeTypes[type];
-                const node = {
-                    id: 'node_' + this.nextId++,
-                    type: type,
-                    label: info.label,
-                    content: type === 'start' ? 'Inicio' : (type === 'message' ? 'Escribe tu mensaje aquí...' : ''),
-                    x: x || 100 + (this.nodes.length * 30),
-                    y: y || 100 + (this.nodes.length * 20),
-                    width: 180,
-                    height: type === 'options' ? 120 : 80,
-                    outputs: type === 'options' ? [{id: 'out1', label: 'Opción 1'}] : [{id: 'out1', label: 'Siguiente'}]
-                };
-                if (type === 'input') node.saveAs = 'variable';
-                if (type === 'condition') node.conditionType = 'equals';
-                if (type === 'action') node.actionType = 'create_order';
-                this.nodes.push(node);
-                this.render();
-                this.selectNode(node.id);
-            },
-
-            deleteNode(id) {
-                this.nodes = this.nodes.filter(n => n.id !== id);
-                this.connections = this.connections.filter(c => c.from !== id && c.to !== id);
-                if (this.selectedNode?.id === id) this.closeProperties();
-                this.render();
-            },
-
-            selectNode(id) {
-                this.selectedNode = this.nodes.find(n => n.id === id);
-                this.render();
-                this.showProperties();
-            },
-
-            showProperties() {
-                const n = this.selectedNode;
-                if (!n) return;
-                const info = this.nodeTypes[n.type];
-                let html = `
-                    <div class="wf-prop-field"><label>Tipo</label><div class="wf-prop-type" style="background:${info.color};color:${info.colorText || '#fff'}">${info.icon} ${info.label}</div></div>
-                    <div class="wf-prop-field"><label>Nombre</label><input type="text" id="prop-label" value="${n.label}" onchange="wf.updateNode('label', this.value)"></div>
-                    <div class="wf-prop-field"><label>Mensaje / Contenido</label><textarea id="prop-content" rows="4" onchange="wf.updateNode('content', this.value)">${n.content || ''}</textarea></div>
-                `;
-                if (n.type === 'input') {
-                    html += `<div class="wf-prop-field"><label>Guardar respuesta en variable</label><input type="text" id="prop-save" value="${n.saveAs || ''}" onchange="wf.updateNode('saveAs', this.value)" placeholder="ej: address, product"></div>`;
-                }
-                if (n.type === 'options') {
-                    html += `<div class="wf-prop-field"><label>Opciones del menú</label><div id="prop-options">${(n.outputs || []).map((o,i) => `<div class="wf-opt-row"><input type="text" value="${o.label}" onchange="wf.updateOption(${i}, this.value)" placeholder="Opción ${i+1}"></div>`).join('')}</div><button class="wf-btn-sm" onclick="wf.addOption()">+ Agregar opción</button></div>`;
-                }
-                if (n.type === 'condition') {
-                    html += `<div class="wf-prop-field"><label>Tipo de condición</label><select id="prop-cond" onchange="wf.updateNode('conditionType', this.value)"><option value="equals" ${n.conditionType==='equals'?'selected':''}>Igual a</option><option value="contains" ${n.conditionType==='contains'?'selected':''}>Contiene</option><option value="yes_no" ${n.conditionType==='yes_no'?'selected':''}>Sí / No</option></select></div>`;
-                }
-                if (n.type === 'action') {
-                    html += `<div class="wf-prop-field"><label>Acción a ejecutar</label><select id="prop-action" onchange="wf.updateNode('actionType', this.value)"><option value="create_order" ${n.actionType==='create_order'?'selected':''}>📝 Crear pedido</option><option value="handoff" ${n.actionType==='handoff'?'selected':''}>🧑‍💼 Transferir a humano</option><option value="show_order" ${n.actionType==='show_order'?'selected':''}>🔍 Buscar pedido</option></select></div>`;
-                }
-                html += `<div class="wf-prop-actions"><button class="wf-btn-danger" onclick="wf.deleteNode('${n.id}')">🗑️ Eliminar nodo</button></div>`;
-                this.propContent.innerHTML = html;
-                this.propertiesPanel.classList.add('open');
-            },
-
-            closeProperties() {
-                this.selectedNode = null;
-                this.propertiesPanel.classList.remove('open');
-                this.render();
-            },
-
-            updateNode(key, value) {
-                if (this.selectedNode) { this.selectedNode[key] = value; this.render(); }
-            },
-
-            updateOption(index, value) {
-                if (this.selectedNode && this.selectedNode.outputs[index]) {
-                    this.selectedNode.outputs[index].label = value;
-                    this.render();
-                }
-            },
-
-            addOption() {
-                if (this.selectedNode) {
-                    this.selectedNode.outputs.push({ id: 'out' + (this.selectedNode.outputs.length + 1), label: 'Nueva opción' });
-                    this.selectedNode.height = 80 + (this.selectedNode.outputs.length * 30);
-                    this.showProperties();
-                    this.render();
-                }
-            },
-
-            onMouseDown(e) {
-                const target = e.target.closest('.wf-node');
-                const port = e.target.closest('.wf-port');
-                
-                if (port) {
-                    e.stopPropagation();
-                    const nodeId = port.dataset.node;
-                    const portId = port.dataset.port;
-                    this.connectingFrom = { nodeId, portId };
-                    return;
-                }
-
-                if (target) {
-                    e.stopPropagation();
-                    const nodeId = target.dataset.id;
-                    this.draggingNode = nodeId;
-                    const node = this.nodes.find(n => n.id === nodeId);
-                    this.dragOffset = { x: e.clientX - node.x, y: e.clientY - node.y };
-                    this.selectNode(nodeId);
-                    return;
-                }
-
-                this.closeProperties();
-            },
-
-            onMouseMove(e) {
-                if (this.draggingNode) {
-                    const node = this.nodes.find(n => n.id === this.draggingNode);
-                    if (node) {
-                        node.x = e.clientX - this.dragOffset.x;
-                        node.y = e.clientY - this.dragOffset.y;
-                        this.render();
-                    }
-                }
-                if (this.connectingFrom) {
-                    this.render();
-                    // Dibujar línea temporal
-                }
-            },
-
-            onMouseUp(e) {
-                if (this.connectingFrom) {
-                    const target = e.target.closest('.wf-node');
-                    if (target) {
-                        const toId = target.dataset.id;
-                        if (toId !== this.connectingFrom.nodeId) {
-                            // Buscar si ya existe esta conexión desde ese puerto
-                            this.connections = this.connections.filter(c => !(c.from === this.connectingFrom.nodeId && c.fromPort === this.connectingFrom.portId));
-                            this.connections.push({ from: this.connectingFrom.nodeId, fromPort: this.connectingFrom.portId, to: toId });
-                        }
-                    }
-                    this.connectingFrom = null;
-                    this.render();
-                }
-                this.draggingNode = null;
-            },
-
-            onDoubleClick(e) {
-                const target = e.target.closest('.wf-node');
-                if (target) {
-                    const id = target.dataset.id;
-                    if (confirm('¿Eliminar este nodo?')) this.deleteNode(id);
-                }
-            },
-
-            getPortPosition(node, portIndex, isOutput) {
-                const portHeight = 28;
-                const startY = node.type === 'options' ? 55 : 45;
-                return {
-                    x: isOutput ? node.x + node.width : node.x,
-                    y: node.y + startY + (portIndex * portHeight)
-                };
-            },
-
-            render() {
-                // Renderizar nodos
-                this.nodesContainer.innerHTML = this.nodes.map(node => {
-                    const info = this.nodeTypes[node.type];
-                    const isSelected = this.selectedNode?.id === node.id;
-                    const outputsHtml = (node.outputs || []).map((o, i) => 
-                        `<div class="wf-port" data-node="${node.id}" data-port="${o.id}" title="Arrastra para conectar">● ${o.label}</div>`
-                    ).join('');
-                    
-                    return `
-                        <div class="wf-node wf-node-${node.type} ${isSelected ? 'selected' : ''}" 
-                             data-id="${node.id}" 
-                             style="left:${node.x}px;top:${node.y}px;width:${node.width}px;min-height:${node.height}px;border-color:${info.color};box-shadow:${isSelected ? '0 0 0 3px ' + info.color + '40' : ''}">
-                            <div class="wf-node-header" style="background:${info.color};color:${info.colorText || '#fff'}">
-                                <span>${info.icon}</span>
-                                <span>${node.label}</span>
-                            </div>
-                            <div class="wf-node-body">${node.content ? node.content.substring(0, 60) + (node.content.length > 60 ? '...' : '') : ''}</div>
-                            <div class="wf-node-outputs">${outputsHtml}</div>
-                        </div>
-                    `;
-                }).join('');
-
-                // Renderizar conexiones SVG
-                let svgHtml = '';
-                this.connections.forEach(conn => {
-                    const fromNode = this.nodes.find(n => n.id === conn.from);
-                    const toNode = this.nodes.find(n => n.id === conn.to);
-                    if (!fromNode || !toNode) return;
-                    const fromPortIdx = (fromNode.outputs || []).findIndex(o => o.id === conn.fromPort);
-                    const fromPos = this.getPortPosition(fromNode, Math.max(0, fromPortIdx), true);
-                    const toPos = { x: toNode.x, y: toNode.y + 30 };
-                    const midX = (fromPos.x + toPos.x) / 2;
-                    svgHtml += `<path d="M${fromPos.x},${fromPos.y} C${midX},${fromPos.y} ${midX},${toPos.y} ${toPos.x},${toPos.y}" class="wf-connection" marker-end="url(#arrowhead)"/>`;
-                });
-                
-                // Línea temporal de conexión
-                if (this.connectingFrom) {
-                    const fromNode = this.nodes.find(n => n.id === this.connectingFrom.nodeId);
-                    if (fromNode) {
-                        const fromPortIdx = (fromNode.outputs || []).findIndex(o => o.id === this.connectingFrom.portId);
-                        const fromPos = this.getPortPosition(fromNode, Math.max(0, fromPortIdx), true);
-                        svgHtml += `<line x1="${fromPos.x}" y1="${fromPos.y}" x2="${fromPos.x + 50}" y2="${fromPos.y}" class="wf-connection" stroke-dasharray="5,5"/>`;
-                    }
-                }
-
-                this.svgContainer.innerHTML = `<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#adb5bd"/></marker></defs>` + svgHtml;
-            },
-
-            toJSON() {
-                const workflow = {};
-                this.nodes.forEach(node => {
-                    const stateId = node.id;
-                    const state = {
-                        message: node.content || '',
-                    };
-                    if (node.type === 'start') {
-                        state.message = node.content || '¡Bienvenido!';
-                        state.options = (node.outputs || []).map(o => {
-                            const conn = this.connections.find(c => c.from === node.id && c.fromPort === o.id);
-                            return { id: o.label.toLowerCase().replace(/\s/g, '_'), label: o.label, next: conn ? conn.to : null };
-                        });
-                    }
-                    if (node.type === 'message') {
-                        const conn = this.connections.find(c => c.from === node.id);
-                        state.next = conn ? conn.to : null;
-                    }
-                    if (node.type === 'input') {
-                        state.save_as = node.saveAs || 'response';
-                        const conn = this.connections.find(c => c.from === node.id);
-                        state.next = conn ? conn.to : null;
-                    }
-                    if (node.type === 'options') {
-                        state.options = (node.outputs || []).map(o => {
-                            const conn = this.connections.find(c => c.from === node.id && c.fromPort === o.id);
-                            return { id: o.label.toLowerCase().replace(/\s/g, '_'), label: o.label, next: conn ? conn.to : null };
-                        });
-                    }
-                    if (node.type === 'condition') {
-                        state.condition = node.conditionType || 'yes_no';
-                        const yesConn = this.connections.find(c => c.from === node.id);
-                        state.next_true = yesConn ? yesConn.to : null;
-                    }
-                    if (node.type === 'action') {
-                        state.action = node.actionType || 'create_order';
-                    }
-                    workflow[stateId] = state;
-                });
-                return workflow;
-            },
-
-            fromJSON(workflow) {
-                this.nodes = [];
-                this.connections = [];
-                this.nextId = 1;
-                const nodeIds = Object.keys(workflow);
-                
-                nodeIds.forEach((key, idx) => {
-                    const state = workflow[key];
-                    let type = 'message';
-                    if (idx === 0) type = 'start';
-                    else if (state.save_as) type = 'input';
-                    else if (state.options && state.options.length > 1) type = 'options';
-                    else if (state.condition) type = 'condition';
-                    else if (state.action) type = 'action';
-                    
-                    const outputs = state.options ? state.options.map((o, i) => ({ id: 'out' + (i+1), label: o.label })) : [{ id: 'out1', label: 'Siguiente' }];
-                    
-                    this.nodes.push({
-                        id: key,
-                        type: type,
-                        label: type === 'start' ? 'Inicio' : (type === 'message' ? 'Mensaje' : key),
-                        content: state.message || '',
-                        x: 100 + (idx * 220),
-                        y: 100 + (idx % 2 * 150),
-                        width: 180,
-                        height: type === 'options' ? 80 + (outputs.length * 30) : 80,
-                        outputs: outputs,
-                        saveAs: state.save_as,
-                        conditionType: state.condition,
-                        actionType: state.action
-                    });
-                    if (parseInt(key.replace('node_', '')) >= this.nextId) this.nextId = parseInt(key.replace('node_', '')) + 1;
-                });
-
-                // Reconstruir conexiones
-                nodeIds.forEach(key => {
-                    const state = workflow[key];
-                    if (state.next) this.connections.push({ from: key, fromPort: 'out1', to: state.next });
-                    if (state.options) {
-                        state.options.forEach((o, i) => {
-                            if (o.next) this.connections.push({ from: key, fromPort: 'out' + (i+1), to: o.next });
-                        });
-                    }
-                });
-                
-                this.render();
-            },
-
-            save() {
-                const workflow = this.toJSON();
-                fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ workflow: workflow })
-                }).then(r => r.json()).then(data => {
-                    if (data.success) alert('✅ Flujo guardado correctamente');
-                    else alert('❌ Error: ' + data.error);
-                });
-            },
-
-            load() {
-                fetch('/api/config').then(r => r.json()).then(data => {
-                    if (data.workflow && Object.keys(data.workflow).length > 0) {
-                        this.fromJSON(data.workflow);
-                    } else {
-                        // Crear workflow por defecto visual
-                        this.nodes = [
-                            { id: 'welcome', type: 'start', label: 'Bienvenida', content: '🛵 ¡Bienvenido a D\'MAR!\n¿Cómo podemos ayudarte?', x: 50, y: 100, width: 180, height: 100, outputs: [{id:'out1',label:'Opción 1'},{id:'out2',label:'Opción 2'}] },
-                            { id: 'ask_address', type: 'input', label: 'Dirección', content: '📍 ¿A qué dirección te lo llevamos?', x: 350, y: 50, width: 180, height: 80, outputs: [{id:'out1',label:'Siguiente'}], saveAs: 'address' },
-                            { id: 'ask_product', type: 'input', label: 'Producto', content: '🍕 ¿Qué necesitas pedir?', x: 600, y: 50, width: 180, height: 80, outputs: [{id:'out1',label:'Siguiente'}], saveAs: 'product' },
-                            { id: 'confirm', type: 'options', label: 'Confirmar', content: '📋 Resumen:\nDirección: {{address}}\nPedido: {{product}}', x: 850, y: 50, width: 180, height: 120, outputs: [{id:'out1',label:'✅ Sí'},{id:'out2',label:'❌ No'}] },
-                            { id: 'create_order', type: 'action', label: 'Crear Pedido', content: 'Crea el pedido en el sistema', x: 1150, y: 50, width: 180, height: 80, outputs: [{id:'out1',label:'Fin'}], actionType: 'create_order' }
-                        ];
-                        this.connections = [
-                            { from: 'welcome', fromPort: 'out1', to: 'ask_address' },
-                            { from: 'ask_address', fromPort: 'out1', to: 'ask_product' },
-                            { from: 'ask_product', fromPort: 'out1', to: 'confirm' },
-                            { from: 'confirm', fromPort: 'out1', to: 'create_order' }
-                        ];
-                        this.nextId = 10;
-                        this.render();
-                    }
-                });
+        // Conectar el editor con el panel de propiedades
+        WorkflowEditor.prototype._onSelectNode = function(node) {
+            const panel = document.getElementById('wf-properties');
+            const content = document.getElementById('wf-prop-content');
+            
+            if (!node) {
+                panel.classList.remove('open');
+                return;
             }
+            
+            const info = this.nodeTypes[node.type];
+            let html = `
+                <div class="wf-prop-field"><label>Tipo</label><div class="wf-prop-type" style="background:${info.color};color:${info.textColor || '#fff'}">${info.icon} ${info.label}</div></div>
+                <div class="wf-prop-field"><label>Nombre del nodo</label><input type="text" value="${node.label}" onchange="editor.updateNode('${node.id}', 'label', this.value)"></div>
+                <div class="wf-prop-field"><label>Mensaje / Contenido</label><textarea rows="5" onchange="editor.updateNode('${node.id}', 'content', this.value)">${node.content || ''}</textarea></div>
+            `;
+            
+            if (node.type === 'input') {
+                html += `<div class="wf-prop-field"><label>Guardar respuesta en variable</label><input type="text" value="${node.saveAs || ''}" onchange="editor.updateNode('${node.id}', 'saveAs', this.value)" placeholder="ej: address, product, item"></div>`;
+            }
+            if (node.type === 'options') {
+                html += `<div class="wf-prop-field"><label>Opciones del menú</label><div id="prop-options">`;
+                (node.outputs || []).forEach((o, i) => {
+                    html += `<div class="wf-opt-row"><input type="text" value="${o.label}" onchange="editor.updateOption('${node.id}', ${i}, this.value)" placeholder="Opción ${i+1}"></div>`;
+                });
+                html += `</div><button class="wf-btn-sm" onclick="editor.addOption('${node.id}'); refreshProperties()">+ Agregar opción</button></div>`;
+            }
+            if (node.type === 'condition') {
+                html += `<div class="wf-prop-field"><label>Tipo de condición</label><select onchange="editor.updateNode('${node.id}', 'conditionType', this.value)"><option value="yes_no" ${node.conditionType==='yes_no'?'selected':''}>Sí / No</option><option value="equals" ${node.conditionType==='equals'?'selected':''}>Igual a</option><option value="contains" ${node.conditionType==='contains'?'selected':''}>Contiene</option></select></div>`;
+            }
+            if (node.type === 'action') {
+                html += `<div class="wf-prop-field"><label>Acción a ejecutar</label><select onchange="editor.updateNode('${node.id}', 'actionType', this.value)"><option value="create_order" ${node.actionType==='create_order'?'selected':''}>📝 Crear pedido</option><option value="handoff" ${node.actionType==='handoff'?'selected':''}>🧑‍💼 Transferir a humano</option><option value="show_order" ${node.actionType==='show_order'?'selected':''}>🔍 Buscar pedido</option></select></div>`;
+            }
+            
+            html += `<div class="wf-prop-actions"><button class="wf-btn-danger" onclick="editor.deleteNode('${node.id}'); closeProperties();">🗑️ Eliminar nodo</button></div>`;
+            
+            content.innerHTML = html;
+            panel.classList.add('open');
         };
 
-        wf.init();
+        function refreshProperties() {
+            if (editor && editor.selectedNode) {
+                editor._onSelectNode(editor.selectedNode);
+            }
+        }
     </script>
 </body>
 </html>
