@@ -19,10 +19,9 @@ class WhatsAppClient:
     def send_text_message(self, to_number: str, message: str) -> dict:
         """
         Envía un mensaje de texto a un número de WhatsApp.
+        Retorna dict con 'success' y detalles. No lanza excepciones.
         """
         url = f"{self.BASE_URL}/{self.phone_number_id}/messages"
-        
-        # Asegurarse que el número no tenga el signo +
         to_number = to_number.replace("+", "").replace(" ", "")
         
         payload = {
@@ -30,9 +29,7 @@ class WhatsAppClient:
             "recipient_type": "individual",
             "to": to_number,
             "type": "text",
-            "text": {
-                "body": message
-            }
+            "text": {"body": message}
         }
         
         print(f"[WS-API] ===== ENVIO WHATSAPP =====")
@@ -42,17 +39,33 @@ class WhatsAppClient:
         print(f"[WS-API] Destino: {to_number}")
         print(f"[WS-API] Mensaje: {message[:60]}...")
         
-        response = requests.post(url, headers=self.headers, json=payload)
-        
-        print(f"[WS-API] Status: {response.status_code}")
-        print(f"[WS-API] Respuesta: {response.text[:500]}")
-        
-        if response.status_code == 200:
-            print("[WS-API] ✅ Mensaje enviado exitosamente!")
-            return response.json()
-        else:
-            print(f"[WS-API] ❌ Error al enviar mensaje: {response.status_code}")
-            response.raise_for_status()
+        try:
+            response = requests.post(url, headers=self.headers, json=payload)
+            print(f"[WS-API] Status: {response.status_code}")
+            print(f"[WS-API] Respuesta: {response.text[:500]}")
+            
+            if response.status_code == 200:
+                print("[WS-API] ✅ Mensaje enviado!")
+                return {"success": True, "data": response.json()}
+            else:
+                print(f"[WS-API] ❌ Error {response.status_code}")
+                return {"success": False, "status_code": response.status_code, "error": response.text}
+        except Exception as e:
+            print(f"[WS-API] ❌ Excepcion: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def debug_token(self) -> dict:
+        """Verifica el token con la API de debug de Facebook."""
+        try:
+            url = f"{self.BASE_URL}/debug_token"
+            params = {
+                "input_token": self.token,
+                "access_token": self.token
+            }
+            resp = requests.get(url, params=params)
+            return {"status_code": resp.status_code, "data": resp.json()}
+        except Exception as e:
+            return {"error": str(e)}
     
     def get_business_profile(self) -> dict:
         """

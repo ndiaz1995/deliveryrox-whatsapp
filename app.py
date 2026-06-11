@@ -175,15 +175,23 @@ def api_diagnose():
     
     token_preview = WHATSAPP_TOKEN[:10] + "..." + WHATSAPP_TOKEN[-4:] if WHATSAPP_TOKEN and len(WHATSAPP_TOKEN) > 20 else "NO CONFIGURADO"
     
-    # Intentar obtener perfil de negocio para verificar token
+    # Intentar debug del token
+    token_debug = None
     token_valid = False
     token_error = None
     if WHATSAPP_TOKEN and PHONE_NUMBER_ID:
         try:
             from whatsapp_client import WhatsAppClient
             client = WhatsAppClient()
-            profile = client.get_business_profile()
-            token_valid = True
+            token_debug = client.debug_token()
+            if token_debug.get("status_code") == 200:
+                data = token_debug.get("data", {})
+                if data.get("data", {}).get("is_valid"):
+                    token_valid = True
+                else:
+                    token_error = data.get("data", {}).get("error", {}).get("message", "Token invalido")
+            else:
+                token_error = f"HTTP {token_debug.get('status_code')}: {token_debug.get('data', {})}"
         except Exception as e:
             token_error = str(e)
     
@@ -197,6 +205,7 @@ def api_diagnose():
         "phone_number_id": PHONE_NUMBER_ID,
         "token_valid": token_valid,
         "token_error": token_error,
+        "token_debug_raw": token_debug,
     })
 
 
@@ -258,17 +267,15 @@ def api_send_test():
             "phone_id_configured": bool(phone_id)
         }), 500
     
-    try:
-        from whatsapp_client import WhatsAppClient
-        client = WhatsAppClient()
-        result = client.send_text_message(phone_number, message)
+    from whatsapp_client import WhatsAppClient
+    client = WhatsAppClient()
+    result = client.send_text_message(phone_number, message)
+    if result.get("success"):
         print(f"   ✅ ENVIADO EXITOSAMENTE")
-        return jsonify({"success": True, "result": result})
-    except Exception as e:
-        print(f"   ❌ ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": True, "result": result.get("data")})
+    else:
+        print(f"   ❌ ERROR: {result}")
+        return jsonify({"success": False, "error": result.get("error"), "status_code": result.get("status_code")}), 500
 
 
 # ============================================================
@@ -373,15 +380,13 @@ def webhook_receive():
                             print(f"[WEBHOOK] Token configured: {bool(token)} (len={len(token) if token else 0})")
                             print(f"[WEBHOOK] Phone ID configured: {bool(phone_id)}")
                             if token and phone_id:
-                                try:
-                                    from whatsapp_client import WhatsAppClient
-                                    client = WhatsAppClient()
-                                    client.send_text_message(phone_number, response_text)
+                                from whatsapp_client import WhatsAppClient
+                                client = WhatsAppClient()
+                                result = client.send_text_message(phone_number, response_text)
+                                if result.get("success"):
                                     print(f"✅ Respuesta enviada a {phone_number}")
-                                except Exception as e:
-                                    print(f"❌ Error enviando respuesta: {e}")
-                                    import traceback
-                                    traceback.print_exc()
+                                else:
+                                    print(f"❌ Error enviando respuesta: {result.get('status_code')} - {result.get('error', 'Unknown')[:200]}")
                             else:
                                 print(f"⚠️  No se envió respuesta a {phone_number}: falta WHATSAPP_TOKEN o PHONE_NUMBER_ID")
 
