@@ -212,7 +212,9 @@ def webhook_receive():
                             )
 
                             # Enviar por WhatsApp si tenemos token
-                            if os.getenv("WHATSAPP_TOKEN") and os.getenv("PHONE_NUMBER_ID"):
+                            token = os.getenv("WHATSAPP_TOKEN")
+                            phone_id = os.getenv("PHONE_NUMBER_ID")
+                            if token and phone_id:
                                 try:
                                     from whatsapp_client import WhatsAppClient
                                     client = WhatsAppClient()
@@ -220,6 +222,8 @@ def webhook_receive():
                                     print(f"✅ Respuesta enviada a {phone_number}")
                                 except Exception as e:
                                     print(f"❌ Error enviando respuesta: {e}")
+                            else:
+                                print(f"⚠️  No se envió respuesta a {phone_number}: falta WHATSAPP_TOKEN o PHONE_NUMBER_ID en variables de entorno")
 
         print("=" * 60)
         return "OK", 200

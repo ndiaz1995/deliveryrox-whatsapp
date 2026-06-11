@@ -12,32 +12,14 @@
         <aside class="sidebar">
             <div class="sidebar-logo">🛵</div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" onclick="showView('dashboard')">
-                    <span class="nav-icon">💬</span>
-                    <span class="nav-label">Conversaciones</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showView('orders')">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-label">Pedidos</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showView('contacts')">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-label">Contactos</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showView('analytics')">
-                    <span class="nav-icon">📊</span>
-                    <span class="nav-label">Analíticas</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showView('settings')">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-label">Configuración</span>
-                </a>
+                <a href="#" class="nav-item active" data-label="Chat" onclick="showView('chat')">💬</a>
+                <a href="#" class="nav-item" data-label="Pedidos" onclick="showView('orders')">📦</a>
+                <a href="#" class="nav-item" data-label="Contactos" onclick="showView('contacts')">👥</a>
+                <a href="#" class="nav-item" data-label="Analíticas" onclick="showView('analytics')">📊</a>
+                <a href="#" class="nav-item" data-label="Ajustes" onclick="showView('settings')">⚙️</a>
             </nav>
             <div class="sidebar-footer">
-                <a href="#" class="nav-item" onclick="alert('D\'MAR v1.0 - Delivery Máxima Atención Rider')">
-                    <span class="nav-icon">ℹ️</span>
-                    <span class="nav-label">Acerca de</span>
-                </a>
+                <a href="#" class="nav-item" data-label="Info" onclick="alert('D\'MAR v2.0')">ℹ️</a>
             </div>
         </aside>
 
@@ -57,55 +39,56 @@
                 </div>
             </header>
 
-            <!-- STATS ROW -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <span>Contactos</span>
-                        <div class="stat-icon-bg blue">👥</div>
+            <!-- SCROLLABLE CONTENT -->
+            <div class="content-scroll">
+                <!-- STATS ROW -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-top">
+                            <span>Contactos</span>
+                            <div class="stat-icon blue">👥</div>
+                        </div>
+                        <div class="stat-number" id="stat-contacts">{{ stats.total_contacts }}</div>
+                        <div class="stat-label">Total registrados</div>
                     </div>
-                    <div class="stat-number" id="stat-contacts">{{ stats.total_contacts }}</div>
-                    <div class="stat-footer">Total registrados</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <span>Mensajes</span>
-                        <div class="stat-icon-bg green">💬</div>
+                    <div class="stat-card">
+                        <div class="stat-top">
+                            <span>Mensajes</span>
+                            <div class="stat-icon green">💬</div>
+                        </div>
+                        <div class="stat-number" id="stat-messages">{{ stats.total_messages }}</div>
+                        <div class="stat-label">Recibidos hoy</div>
                     </div>
-                    <div class="stat-number" id="stat-messages">{{ stats.total_messages }}</div>
-                    <div class="stat-footer">Recibidos hoy</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <span>Sin Leer</span>
-                        <div class="stat-icon-bg orange">🔔</div>
+                    <div class="stat-card">
+                        <div class="stat-top">
+                            <span>Sin Leer</span>
+                            <div class="stat-icon orange">🔔</div>
+                        </div>
+                        <div class="stat-number" id="stat-unread">{{ stats.unread_conversations }}</div>
+                        <div class="stat-label">Conversaciones</div>
                     </div>
-                    <div class="stat-number" id="stat-unread">{{ stats.unread_conversations }}</div>
-                    <div class="stat-footer">Conversaciones</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <span>Pedidos</span>
-                        <div class="stat-icon-bg purple">📦</div>
+                    <div class="stat-card">
+                        <div class="stat-top">
+                            <span>Pedidos</span>
+                            <div class="stat-icon purple">📦</div>
+                        </div>
+                        <div class="stat-number" id="stat-orders">{{ stats.pending_orders }}</div>
+                        <div class="stat-label">Pendientes</div>
                     </div>
-                    <div class="stat-number" id="stat-orders">{{ stats.pending_orders }}</div>
-                    <div class="stat-footer">Pendientes</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <span>Humanos</span>
-                        <div class="stat-icon-bg red">🧑‍💼</div>
+                    <div class="stat-card">
+                        <div class="stat-top">
+                            <span>Humanos</span>
+                            <div class="stat-icon red">🧑‍💼</div>
+                        </div>
+                        <div class="stat-number" id="stat-handoffs">{{ stats.human_handoffs }}</div>
+                        <div class="stat-label">En espera</div>
                     </div>
-                    <div class="stat-number" id="stat-handoffs">{{ stats.human_handoffs }}</div>
-                    <div class="stat-footer">En espera</div>
                 </div>
-            </div>
 
-            <!-- CONTENT -->
-            <div class="content">
-                <div class="chat-container">
-                    <!-- CONVERSATIONS PANEL -->
-                    <div class="panel conversations-panel">
+                <!-- CHAT LAYOUT -->
+                <div class="chat-layout">
+                    <!-- CONVERSATIONS -->
+                    <div class="panel">
                         <div class="panel-header">
                             <h3>Conversaciones</h3>
                             <span class="panel-badge" id="conv-badge">{{ stats.unread_conversations }}</span>
@@ -128,7 +111,7 @@
                                         </span>
                                     </div>
                                     <div class="conv-preview {% if conv.unread_count > 0 %}unread{% endif %}">
-                                        {% if conv.human_handoff %}🚨 Atención humana requerida{% else %}{{ conv.last_message[:35] if conv.last_message else '' }}{% if conv.last_message and conv.last_message|length > 35 %}...{% endif %}{% endif %}
+                                        {% if conv.human_handoff %}🚨 Atención humana requerida{% else %}{{ conv.last_message[:32] if conv.last_message else '' }}{% if conv.last_message and conv.last_message|length > 32 %}...{% endif %}{% endif %}
                                     </div>
                                 </div>
                                 <div class="conv-meta">
@@ -150,8 +133,8 @@
                         </div>
                     </div>
 
-                    <!-- CHAT PANEL -->
-                    <div class="panel chat-panel">
+                    <!-- CHAT -->
+                    <div class="panel">
                         <div class="chat-header" id="chat-header">
                             <div class="chat-header-avatar">?</div>
                             <div class="chat-header-info">
@@ -186,7 +169,6 @@
         let currentHandoff = false;
         let lastMessageCount = {{ stats.total_messages }};
 
-        // Auto-refresh cada 3 segundos
         setInterval(refreshData, 3000);
 
         function refreshData() {
@@ -201,49 +183,33 @@
                     document.getElementById('conv-badge').textContent = stats.unread_conversations;
 
                     if (stats.total_messages > lastMessageCount && lastMessageCount > 0) {
-                        playNotification();
+                        try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBjiR1/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE').play(); } catch(e){}
                     }
                     lastMessageCount = stats.total_messages;
                 });
 
             fetch('/api/conversations')
                 .then(r => r.json())
-                .then(conversations => {
-                    updateConversationsList(conversations);
-                });
+                .then(conversations => updateConversationsList(conversations));
         }
 
         function updateConversationsList(conversations) {
             const container = document.getElementById('conversations-list');
-            
             if (conversations.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <h4>Sin conversaciones</h4>
-                        <p>Los mensajes aparecerán aquí</p>
-                    </div>`;
+                container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><h4>Sin conversaciones</h4><p>Los mensajes aparecerán aquí</p></div>`;
                 return;
             }
-
             container.innerHTML = conversations.map(conv => `
                 <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${conv.phone_number === currentPhone ? 'active' : ''}" 
-                     data-phone="${conv.phone_number}"
-                     onclick="loadChat('${conv.phone_number}')">
-                    <div class="conv-avatar ${conv.human_handoff ? 'human' : ''}">
-                        ${(conv.profile_name || conv.phone_number)[0] || '?'}
-                    </div>
+                     data-phone="${conv.phone_number}" onclick="loadChat('${conv.phone_number}')">
+                    <div class="conv-avatar ${conv.human_handoff ? 'human' : ''}">${(conv.profile_name || conv.phone_number)[0] || '?'}</div>
                     <div class="conv-info">
                         <div class="conv-header">
-                            <span class="conv-name ${conv.unread_count > 0 ? 'unread' : ''}">
-                                ${conv.profile_name || conv.phone_number}
-                            </span>
-                            <span class="conv-time">
-                                ${conv.last_message_time ? conv.last_message_time.substring(11, 16) : ''}
-                            </span>
+                            <span class="conv-name ${conv.unread_count > 0 ? 'unread' : ''}">${conv.profile_name || conv.phone_number}</span>
+                            <span class="conv-time">${conv.last_message_time ? conv.last_message_time.substring(11, 16) : ''}</span>
                         </div>
                         <div class="conv-preview ${conv.unread_count > 0 ? 'unread' : ''}">
-                            ${conv.human_handoff ? '🚨 Atención humana requerida' : (conv.last_message ? conv.last_message.substring(0, 35) : '') + (conv.last_message && conv.last_message.length > 35 ? '...' : '')}
+                            ${conv.human_handoff ? '🚨 Atención humana requerida' : (conv.last_message ? conv.last_message.substring(0, 32) : '') + (conv.last_message && conv.last_message.length > 32 ? '...' : '')}
                         </div>
                     </div>
                     <div class="conv-meta">
@@ -256,39 +222,26 @@
 
         function loadChat(phone) {
             currentPhone = phone;
-            
             fetch(`/api/messages/${phone}`)
                 .then(r => r.json())
                 .then(data => {
                     const contact = data.contact || {};
                     const state = data.state || {};
                     const messages = data.messages || [];
-                    
                     currentProfileName = contact.profile_name || phone;
                     currentHandoff = state.human_handoff === 1;
 
-                    // Header
-                    const avatar = document.querySelector('.chat-header-avatar');
-                    avatar.textContent = currentProfileName[0] || '?';
-                    avatar.style.background = currentHandoff 
+                    document.querySelector('.chat-header-avatar').textContent = currentProfileName[0] || '?';
+                    document.querySelector('.chat-header-avatar').style.background = currentHandoff 
                         ? 'linear-gradient(135deg, #ff7043, #f4511e)' 
                         : '';
-
                     document.querySelector('.chat-header-info h4').textContent = currentProfileName;
-                    document.querySelector('.chat-header-info p').textContent = 
-                        currentHandoff ? '🚨 Atención humana requerida' : `+${phone}`;
-                    
+                    document.querySelector('.chat-header-info p').textContent = currentHandoff ? '🚨 Atención humana requerida' : `+${phone}`;
                     document.getElementById('chat-actions').style.display = 'flex';
 
-                    // Messages
                     const container = document.getElementById('chat-messages');
                     if (messages.length === 0) {
-                        container.innerHTML = `
-                            <div class="empty-state">
-                                <div class="empty-state-icon">💬</div>
-                                <h4>Sin mensajes</h4>
-                                <p>La conversación aparecerá aquí</p>
-                            </div>`;
+                        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">💬</div><h4>Sin mensajes</h4><p>La conversación aparecerá aquí</p></div>`;
                     } else {
                         container.innerHTML = messages.reverse().map(msg => `
                             <div class="message ${msg.direction}">
@@ -297,11 +250,8 @@
                             </div>
                         `).join('');
                     }
-
                     container.scrollTop = container.scrollHeight;
                     document.getElementById('chat-input').style.display = 'flex';
-
-                    // Marcar como leído
                     fetch(`/api/read/${phone}`, { method: 'POST' });
                 });
         }
@@ -325,35 +275,18 @@
 
         function toggleHandoff() {
             if (!currentPhone) return;
-            const newState = !currentHandoff;
             fetch(`/api/handoff/${currentPhone}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: newState })
-            })
-            .then(() => {
-                loadChat(currentPhone);
-                refreshData();
-            });
+                body: JSON.stringify({ active: !currentHandoff })
+            }).then(() => { loadChat(currentPhone); refreshData(); });
         }
 
         function resetBot() {
             if (!currentPhone) return;
             if (!confirm('¿Reiniciar el bot para esta conversación?')) return;
             fetch(`/api/reset/${currentPhone}`, { method: 'POST' })
-                .then(() => {
-                    alert('Bot reiniciado. Enviando mensaje de bienvenida...');
-                    loadChat(currentPhone);
-                });
-        }
-
-        function playNotification() {
-            // Intentar reproducir sonido si el usuario lo permite
-            try {
-                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE');
-                audio.volume = 0.3;
-                audio.play();
-            } catch(e) {}
+                .then(() => loadChat(currentPhone));
         }
 
         function escapeHtml(text) {
@@ -363,7 +296,6 @@
         }
 
         function showView(view) {
-            // Placeholder para futuras vistas
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             event.currentTarget.classList.add('active');
         }
