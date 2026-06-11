@@ -6,9 +6,11 @@ from dotenv import load_dotenv
 
 from database import (
     init_db, save_message, get_messages, get_conversations,
-    get_stats, mark_conversation_as_read, get_contact
+    get_stats, mark_conversation_as_read, get_contact,
+    get_conversation_state, update_conversation_state,
+    get_orders_by_phone
 )
-from whatsapp_client import WhatsAppClient
+from chatbot import DMARBot
 
 # Carga variables de entorno
 load_dotenv()
@@ -18,12 +20,13 @@ app = Flask(__name__)
 # Token de verificación para los webhooks de Meta
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN", "mi_token_secreto_123")
 
-# Inicializa la base de datos al arrancar
+# Inicializa base de datos y bot
 init_db()
+bot = DMARBot()
 
 
 # ============================================================
-# RUTA PRINCIPAL - CENTRO DE MANDO (DASHBOARD)
+# RUTA PRINCIPAL - CENTRO DE MANDO
 # ============================================================
 @app.route("/")
 def dashboard():
@@ -34,34 +37,35 @@ def dashboard():
 
 
 # ============================================================
-# API - ENDPOINTS JSON PARA EL DASHBOARD
+# API - ENDPOINTS JSON
 # ============================================================
 @app.route("/api/stats")
 def api_stats():
-    """Retorna estadísticas en JSON."""
     return jsonify(get_stats())
 
 
 @app.route("/api/conversations")
 def api_conversations():
-    """Retorna todas las conversaciones en JSON."""
     return jsonify(get_conversations())
 
 
 @app.route("/api/messages/<phone_number>")
 def api_messages(phone_number):
-    """Retorna los mensajes de un número específico."""
     messages = get_messages(phone_number)
     contact = get_contact(phone_number)
+    state = get_conversation_state(phone_number)
+    orders = get_orders_by_phone(phone_number)
     return jsonify({
         "contact": contact,
+        "state": state,
+        "orders": orders,
         "messages": messages
     })
 
 
 @app.route("/api/send", methods=["POST"])
 def api_send():
-    """Envía un mensaje desde el dashboard."""
+    """Envía un mensaje desde el dashboard (humano)."""
     data = request.json
     phone_number = data.get("phone_number", "").strip()
     message = data.get("message", "").strip()
@@ -69,27 +73,48 @@ def api_send():
     if not phone_number or not message:
         return jsonify({"error": "Número y mensaje son requeridos"}), 400
 
-    try:
-        client = WhatsAppClient()
-        result = client.send_text_message(phone_number, message)
+    # Guardar mensaje saliente en DB
+    save_message(
+        phone_number=phone_number,
+        content=message,
+        direction="outgoing"
+    )
 
-        # Guarda el mensaje enviado en la base de datos
-        save_message(
-            phone_number=phone_number,
-            content=message,
-            message_type="text",
-            direction="outgoing"
-        )
-
-        return jsonify({"success": True, "result": result})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Si tiene token de Meta, enviar por WhatsApp real
+    if os.getenv("WHATSAPP_TOKEN") and os.getenv("PHONE_NUMBER_ID"):
+        try:
+            from whatsapp_client import WhatsAppClient
+            client = WhatsAppClient()
+            result = client.send_text_message(phone_number, message)
+            return jsonify({"success": True, "result": result})
+        except Exception as e:
+            return jsonify({"success": False, "sent_locally": True, "error": str(e)})
+    else:
+        return jsonify({"success": True, "sent_locally": True, "note": "Modo sin token de Meta"})
 
 
 @app.route("/api/read/<phone_number>", methods=["POST"])
 def api_read(phone_number):
-    """Marca una conversación como leída."""
     mark_conversation_as_read(phone_number)
+    return jsonify({"success": True})
+
+
+@app.route("/api/handoff/<phone_number>", methods=["POST"])
+def api_handoff(phone_number):
+    """Activa/desactiva atención humana."""
+    data = request.json or {}
+    active = data.get("active", True)
+    state = get_conversation_state(phone_number)
+    update_conversation_state(
+        phone_number, state['state'], {}, human_handoff=1 if active else 0
+    )
+    return jsonify({"success": True, "human_handoff": active})
+
+
+@app.route("/api/reset/<phone_number>", methods=["POST"])
+def api_reset(phone_number):
+    """Reinicia el estado del bot para un número."""
+    bot.reset_state(phone_number)
     return jsonify({"success": True})
 
 
@@ -98,10 +123,6 @@ def api_read(phone_number):
 # ============================================================
 @app.route("/webhook", methods=["GET"])
 def webhook_verify():
-    """
-    Meta envía una petición GET para verificar que este servidor es tuyo.
-    Debes configurar esta URL en Meta con el VERIFY_TOKEN.
-    """
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
@@ -116,21 +137,16 @@ def webhook_verify():
 
 @app.route("/webhook", methods=["POST"])
 def webhook_receive():
-    """
-    Recibe los eventos de WhatsApp (mensajes entrantes, etc.)
-    Meta enviará un JSON cada vez que alguien te escriba.
-    """
+    """Recibe eventos de WhatsApp y procesa con el bot automático."""
     try:
         data = request.json
         print("\n" + "=" * 60)
         print(f"📩 [{datetime.now().strftime('%H:%M:%S')}] Webhook recibido")
 
-        # Procesar cada entrada
         for entry in data.get("entry", []):
             for change in entry.get("changes", []):
                 value = change.get("value", {})
 
-                # Solo procesamos mensajes
                 if "messages" not in value:
                     continue
 
@@ -140,17 +156,15 @@ def webhook_receive():
                     msg_type = msg.get("type")
                     timestamp = msg.get("timestamp")
 
-                    # Convertir timestamp de Unix a ISO
                     if timestamp:
                         timestamp = datetime.fromtimestamp(int(timestamp)).isoformat()
                     else:
                         timestamp = datetime.now().isoformat()
 
-                    # Obtener nombre del perfil si existe
                     contacts = value.get("contacts", [])
                     profile_name = contacts[0].get("profile", {}).get("name") if contacts else None
 
-                    # Extraer contenido según el tipo
+                    # Extraer contenido
                     content = ""
                     if msg_type == "text":
                         content = msg.get("text", {}).get("body", "")
@@ -168,7 +182,7 @@ def webhook_receive():
                     else:
                         content = f"[{msg_type.upper()} recibido]"
 
-                    # Guardar en base de datos
+                    # Guardar mensaje en DB
                     is_new = save_message(
                         phone_number=phone_number,
                         content=content,
@@ -182,17 +196,37 @@ def webhook_receive():
                     if is_new:
                         display_name = profile_name or phone_number
                         print(f"💬 [{display_name}] {content}")
-                        print(f"   📱 Número: {phone_number}")
-                        print(f"   🆔 ID: {msg_id}")
-                    else:
-                        print(f"⏩ Mensaje duplicado ignorado: {msg_id}")
+
+                        # ===== BOT AUTOMÁTICO =====
+                        bot_response = bot.process_message(phone_number, content, profile_name)
+
+                        if bot_response:
+                            response_text, _ = bot_response
+                            print(f"🤖 [BOT] {response_text[:80]}...")
+
+                            # Guardar respuesta del bot en DB
+                            save_message(
+                                phone_number=phone_number,
+                                content=response_text,
+                                direction="outgoing"
+                            )
+
+                            # Enviar por WhatsApp si tenemos token
+                            if os.getenv("WHATSAPP_TOKEN") and os.getenv("PHONE_NUMBER_ID"):
+                                try:
+                                    from whatsapp_client import WhatsAppClient
+                                    client = WhatsAppClient()
+                                    client.send_text_message(phone_number, response_text)
+                                    print(f"✅ Respuesta enviada a {phone_number}")
+                                except Exception as e:
+                                    print(f"❌ Error enviando respuesta: {e}")
 
         print("=" * 60)
         return "OK", 200
 
     except Exception as e:
         print(f"❌ Error procesando webhook: {e}")
-        return "OK", 200  # Siempre respondemos 200 a Meta
+        return "OK", 200
 
 
 # ============================================================
@@ -201,14 +235,12 @@ def webhook_receive():
 if __name__ == "__main__":
     print("""
     ╔═══════════════════════════════════════════════════════════╗
-    ║         🤖 DELIVERYROX - CENTRO DE MANDO WHATSAPP        ║
+    ║         🤖 D'MAR - CENTRO DE MANDO WHATSAPP              ║
+    ║         (Delivery Máxima Atención Rider)                 ║
     ╠═══════════════════════════════════════════════════════════╣
     ║  🌐 Dashboard:  http://localhost:5000                     ║
     ║  🔗 Webhook:    http://localhost:5000/webhook             ║
     ║  🔑 Verify Token: {}                 ║
-    ╠═══════════════════════════════════════════════════════════╣
-    ║  Para exponer a internet (Meta requiere esto):           ║
-    ║  → ngrok http 5000                                       ║
     ╚═══════════════════════════════════════════════════════════╝
     """.format(VERIFY_TOKEN))
 

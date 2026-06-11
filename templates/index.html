@@ -3,110 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 DeliveryRox - Centro de Mando WhatsApp</title>
+    <title>D'MAR - Centro de Mando</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>🤖 DeliveryRox Centro de Mando</h1>
-            <p>WhatsApp Business API - Escucha Activa</p>
-        </header>
+    <div class="app">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">🛵</div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="showView('dashboard')">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-label">Conversaciones</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showView('orders')">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-label">Pedidos</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showView('contacts')">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-label">Contactos</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showView('analytics')">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Analíticas</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showView('settings')">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-label">Configuración</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item" onclick="alert('D\'MAR v1.0 - Delivery Máxima Atención Rider')">
+                    <span class="nav-icon">ℹ️</span>
+                    <span class="nav-label">Acerca de</span>
+                </a>
+            </div>
+        </aside>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-number" id="stat-contacts">{{ stats.total_contacts }}</div>
-                <div class="stat-label">Contactos</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💬</div>
-                <div class="stat-number" id="stat-messages">{{ stats.total_messages }}</div>
-                <div class="stat-label">Mensajes Recibidos</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🔔</div>
-                <div class="stat-number" id="stat-unread">{{ stats.unread_conversations }}</div>
-                <div class="stat-label">Sin Leer</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-number" id="stat-today">{{ stats.messages_today }}</div>
-                <div class="stat-label">Hoy (24h)</div>
-            </div>
-        </div>
+        <!-- MAIN -->
+        <main class="main">
+            <!-- HEADER -->
+            <header class="header">
+                <div class="header-brand">
+                    <h1>D'MAR</h1>
+                    <span>Delivery Máxima Atención Rider</span>
+                </div>
+                <div class="header-actions">
+                    <div class="status-badge">
+                        <span class="dot"></span>
+                        <span id="bot-status">Bot Activo</span>
+                    </div>
+                </div>
+            </header>
 
-        <!-- Main Content -->
-        <div class="main-grid">
-            <!-- Conversations List -->
-            <div class="panel conversations-panel">
-                <h2>📨 Conversaciones</h2>
-                <div class="conversations-list" id="conversations-list">
-                    {% for conv in conversations %}
-                    <div class="conversation-item {% if conv.unread_count > 0 %}unread{% endif %}" 
-                         data-phone="{{ conv.phone_number }}"
-                         onclick="loadChat('{{ conv.phone_number }}')">
-                        <div class="conversation-avatar">
-                            {{ (conv.profile_name or conv.phone_number)[0] if (conv.profile_name or conv.phone_number) else '?' }}
+            <!-- STATS ROW -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span>Contactos</span>
+                        <div class="stat-icon-bg blue">👥</div>
+                    </div>
+                    <div class="stat-number" id="stat-contacts">{{ stats.total_contacts }}</div>
+                    <div class="stat-footer">Total registrados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span>Mensajes</span>
+                        <div class="stat-icon-bg green">💬</div>
+                    </div>
+                    <div class="stat-number" id="stat-messages">{{ stats.total_messages }}</div>
+                    <div class="stat-footer">Recibidos hoy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span>Sin Leer</span>
+                        <div class="stat-icon-bg orange">🔔</div>
+                    </div>
+                    <div class="stat-number" id="stat-unread">{{ stats.unread_conversations }}</div>
+                    <div class="stat-footer">Conversaciones</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span>Pedidos</span>
+                        <div class="stat-icon-bg purple">📦</div>
+                    </div>
+                    <div class="stat-number" id="stat-orders">{{ stats.pending_orders }}</div>
+                    <div class="stat-footer">Pendientes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span>Humanos</span>
+                        <div class="stat-icon-bg red">🧑‍💼</div>
+                    </div>
+                    <div class="stat-number" id="stat-handoffs">{{ stats.human_handoffs }}</div>
+                    <div class="stat-footer">En espera</div>
+                </div>
+            </div>
+
+            <!-- CONTENT -->
+            <div class="content">
+                <div class="chat-container">
+                    <!-- CONVERSATIONS PANEL -->
+                    <div class="panel conversations-panel">
+                        <div class="panel-header">
+                            <h3>Conversaciones</h3>
+                            <span class="panel-badge" id="conv-badge">{{ stats.unread_conversations }}</span>
                         </div>
-                        <div class="conversation-info">
-                            <div class="conversation-header">
-                                <span class="conversation-name">
-                                    {{ conv.profile_name or conv.phone_number }}
-                                </span>
-                                <span class="conversation-time">
-                                    {{ conv.last_message_time[:16] if conv.last_message_time else '' }}
-                                </span>
+                        <div class="conversations-list" id="conversations-list">
+                            {% for conv in conversations %}
+                            <div class="conversation-item {% if conv.unread_count > 0 %}unread{% endif %} {% if loop.first %}active{% endif %}" 
+                                 data-phone="{{ conv.phone_number }}"
+                                 onclick="loadChat('{{ conv.phone_number }}')">
+                                <div class="conv-avatar {% if conv.human_handoff %}human{% endif %}">
+                                    {{ (conv.profile_name or conv.phone_number)[0] if (conv.profile_name or conv.phone_number) else '?' }}
+                                </div>
+                                <div class="conv-info">
+                                    <div class="conv-header">
+                                        <span class="conv-name {% if conv.unread_count > 0 %}unread{% endif %}">
+                                            {{ conv.profile_name or conv.phone_number }}
+                                        </span>
+                                        <span class="conv-time">
+                                            {{ conv.last_message_time[11:16] if conv.last_message_time else '' }}
+                                        </span>
+                                    </div>
+                                    <div class="conv-preview {% if conv.unread_count > 0 %}unread{% endif %}">
+                                        {% if conv.human_handoff %}🚨 Atención humana requerida{% else %}{{ conv.last_message[:35] if conv.last_message else '' }}{% if conv.last_message and conv.last_message|length > 35 %}...{% endif %}{% endif %}
+                                    </div>
+                                </div>
+                                <div class="conv-meta">
+                                    {% if conv.unread_count > 0 %}
+                                    <span class="unread-count">{{ conv.unread_count }}</span>
+                                    {% endif %}
+                                    {% if conv.human_handoff %}
+                                    <span class="handoff-badge">HUMANO</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="conversation-preview">
-                                {{ conv.last_message[:50] if conv.last_message else '' }}{% if conv.last_message and conv.last_message|length > 50 %}...{% endif %}
+                            {% else %}
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <h4>Sin conversaciones</h4>
+                                <p>Los mensajes aparecerán aquí</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- CHAT PANEL -->
+                    <div class="panel chat-panel">
+                        <div class="chat-header" id="chat-header">
+                            <div class="chat-header-avatar">?</div>
+                            <div class="chat-header-info">
+                                <h4>Selecciona una conversación</h4>
+                                <p>---</p>
+                            </div>
+                            <div class="chat-header-actions" id="chat-actions" style="display:none;">
+                                <button class="btn-icon" onclick="toggleHandoff()" title="Transferir a humano">🧑‍💼</button>
+                                <button class="btn-icon" onclick="resetBot()" title="Reiniciar bot">🔄</button>
                             </div>
                         </div>
-                        {% if conv.unread_count > 0 %}
-                        <span class="unread-badge">{{ conv.unread_count }}</span>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <p>📭 No hay conversaciones aún</p>
-                        <p>Los mensajes aparecerán aquí cuando alguien te escriba</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Chat Panel -->
-            <div class="panel chat-panel">
-                <div class="chat-header" id="chat-header">
-                    <span>Selecciona una conversación</span>
-                </div>
-                <div class="chat-messages" id="chat-messages">
-                    <div class="empty-chat">
-                        <p>👈 Selecciona una conversación para ver los mensajes</p>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">👈</div>
+                                <h4>Centro de Mando D'MAR</h4>
+                                <p>Selecciona una conversación para ver los mensajes</p>
+                            </div>
+                        </div>
+                        <div class="chat-input-area" id="chat-input" style="display:none;">
+                            <input type="text" id="message-input" placeholder="Escribe tu mensaje..." onkeypress="if(event.key==='Enter') sendMessage()">
+                            <button class="btn-send" onclick="sendMessage()">📤</button>
+                        </div>
                     </div>
                 </div>
-                <div class="chat-input-area" id="chat-input" style="display: none;">
-                    <input type="text" id="message-input" placeholder="Escribe un mensaje..." 
-                           onkeypress="if(event.key==='Enter') sendMessage()">
-                    <button onclick="sendMessage()">📤 Enviar</button>
-                </div>
             </div>
-        </div>
-
-        <!-- Live Log -->
-        <div class="panel log-panel">
-            <h2>📡 Log en Vivo</h2>
-            <div class="log-container" id="live-log">
-                <p class="log-entry info">🚀 Centro de mando iniciado. Esperando mensajes...</p>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script>
         let currentPhone = null;
         let currentProfileName = null;
+        let currentHandoff = false;
+        let lastMessageCount = {{ stats.total_messages }};
 
         // Auto-refresh cada 3 segundos
         setInterval(refreshData, 3000);
@@ -118,7 +196,14 @@
                     document.getElementById('stat-contacts').textContent = stats.total_contacts;
                     document.getElementById('stat-messages').textContent = stats.total_messages;
                     document.getElementById('stat-unread').textContent = stats.unread_conversations;
-                    document.getElementById('stat-today').textContent = stats.messages_today;
+                    document.getElementById('stat-orders').textContent = stats.pending_orders;
+                    document.getElementById('stat-handoffs').textContent = stats.human_handoffs;
+                    document.getElementById('conv-badge').textContent = stats.unread_conversations;
+
+                    if (stats.total_messages > lastMessageCount && lastMessageCount > 0) {
+                        playNotification();
+                    }
+                    lastMessageCount = stats.total_messages;
                 });
 
             fetch('/api/conversations')
@@ -134,89 +219,96 @@
             if (conversations.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <p>📭 No hay conversaciones aún</p>
-                        <p>Los mensajes aparecerán aquí cuando alguien te escriba</p>
+                        <div class="empty-state-icon">📭</div>
+                        <h4>Sin conversaciones</h4>
+                        <p>Los mensajes aparecerán aquí</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = conversations.map(conv => `
-                <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''}" 
+                <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''} ${conv.phone_number === currentPhone ? 'active' : ''}" 
                      data-phone="${conv.phone_number}"
-                     onclick="loadChat('${conv.phone_number}', '${conv.profile_name || ''}')">
-                    <div class="conversation-avatar">
+                     onclick="loadChat('${conv.phone_number}')">
+                    <div class="conv-avatar ${conv.human_handoff ? 'human' : ''}">
                         ${(conv.profile_name || conv.phone_number)[0] || '?'}
                     </div>
-                    <div class="conversation-info">
-                        <div class="conversation-header">
-                            <span class="conversation-name">
+                    <div class="conv-info">
+                        <div class="conv-header">
+                            <span class="conv-name ${conv.unread_count > 0 ? 'unread' : ''}">
                                 ${conv.profile_name || conv.phone_number}
                             </span>
-                            <span class="conversation-time">
-                                ${conv.last_message_time ? conv.last_message_time.substring(0, 16) : ''}
+                            <span class="conv-time">
+                                ${conv.last_message_time ? conv.last_message_time.substring(11, 16) : ''}
                             </span>
                         </div>
-                        <div class="conversation-preview">
-                            ${conv.last_message ? conv.last_message.substring(0, 50) : ''}
-                            ${conv.last_message && conv.last_message.length > 50 ? '...' : ''}
+                        <div class="conv-preview ${conv.unread_count > 0 ? 'unread' : ''}">
+                            ${conv.human_handoff ? '🚨 Atención humana requerida' : (conv.last_message ? conv.last_message.substring(0, 35) : '') + (conv.last_message && conv.last_message.length > 35 ? '...' : '')}
                         </div>
                     </div>
-                    ${conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : ''}
+                    <div class="conv-meta">
+                        ${conv.unread_count > 0 ? `<span class="unread-count">${conv.unread_count}</span>` : ''}
+                        ${conv.human_handoff ? `<span class="handoff-badge">HUMANO</span>` : ''}
+                    </div>
                 </div>
             `).join('');
         }
 
-        function loadChat(phone, profileName) {
+        function loadChat(phone) {
             currentPhone = phone;
-            currentProfileName = profileName || phone;
-
-            // Marcar como leído
-            fetch(`/api/read/${phone}`, { method: 'POST' });
-
-            // Actualizar header
-            document.getElementById('chat-header').innerHTML = `
-                <span>💬 ${currentProfileName}</span>
-                <small>${phone}</small>
-            `;
-
-            // Mostrar input
-            document.getElementById('chat-input').style.display = 'flex';
-
-            // Cargar mensajes
+            
             fetch(`/api/messages/${phone}`)
                 .then(r => r.json())
                 .then(data => {
-                    const container = document.getElementById('chat-messages');
+                    const contact = data.contact || {};
+                    const state = data.state || {};
                     const messages = data.messages || [];
                     
+                    currentProfileName = contact.profile_name || phone;
+                    currentHandoff = state.human_handoff === 1;
+
+                    // Header
+                    const avatar = document.querySelector('.chat-header-avatar');
+                    avatar.textContent = currentProfileName[0] || '?';
+                    avatar.style.background = currentHandoff 
+                        ? 'linear-gradient(135deg, #ff7043, #f4511e)' 
+                        : '';
+
+                    document.querySelector('.chat-header-info h4').textContent = currentProfileName;
+                    document.querySelector('.chat-header-info p').textContent = 
+                        currentHandoff ? '🚨 Atención humana requerida' : `+${phone}`;
+                    
+                    document.getElementById('chat-actions').style.display = 'flex';
+
+                    // Messages
+                    const container = document.getElementById('chat-messages');
                     if (messages.length === 0) {
-                        container.innerHTML = '<div class="empty-chat"><p>Sin mensajes</p></div>';
-                        return;
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💬</div>
+                                <h4>Sin mensajes</h4>
+                                <p>La conversación aparecerá aquí</p>
+                            </div>`;
+                    } else {
+                        container.innerHTML = messages.reverse().map(msg => `
+                            <div class="message ${msg.direction}">
+                                <div>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+                                <div class="message-time">${msg.timestamp ? msg.timestamp.substring(11, 16) : ''}</div>
+                            </div>
+                        `).join('');
                     }
 
-                    container.innerHTML = messages.reverse().map(msg => `
-                        <div class="message ${msg.direction}">
-                            <div class="message-content">${escapeHtml(msg.content)}</div>
-                            <div class="message-time">${msg.timestamp ? msg.timestamp.substring(11, 16) : ''}</div>
-                        </div>
-                    `).join('');
-
                     container.scrollTop = container.scrollHeight;
-                });
+                    document.getElementById('chat-input').style.display = 'flex';
 
-            // Quitar badge de unread visualmente
-            const item = document.querySelector(`[data-phone="${phone}"]`);
-            if (item) {
-                item.classList.remove('unread');
-                const badge = item.querySelector('.unread-badge');
-                if (badge) badge.remove();
-            }
+                    // Marcar como leído
+                    fetch(`/api/read/${phone}`, { method: 'POST' });
+                });
         }
 
         function sendMessage() {
             const input = document.getElementById('message-input');
             const message = input.value.trim();
-            
             if (!message || !currentPhone) return;
 
             fetch('/api/send', {
@@ -226,30 +318,42 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    input.value = '';
-                    loadChat(currentPhone, currentProfileName);
-                    addLog(`✅ Mensaje enviado a ${currentProfileName}`, 'success');
-                } else {
-                    addLog(`❌ Error: ${data.error}`, 'error');
-                }
-            })
-            .catch(err => {
-                addLog(`❌ Error de red: ${err}`, 'error');
+                input.value = '';
+                loadChat(currentPhone);
             });
         }
 
-        function addLog(text, type = 'info') {
-            const log = document.getElementById('live-log');
-            const entry = document.createElement('p');
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-            log.insertBefore(entry, log.firstChild);
-            
-            // Mantener solo últimos 50 logs
-            while (log.children.length > 50) {
-                log.removeChild(log.lastChild);
-            }
+        function toggleHandoff() {
+            if (!currentPhone) return;
+            const newState = !currentHandoff;
+            fetch(`/api/handoff/${currentPhone}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: newState })
+            })
+            .then(() => {
+                loadChat(currentPhone);
+                refreshData();
+            });
+        }
+
+        function resetBot() {
+            if (!currentPhone) return;
+            if (!confirm('¿Reiniciar el bot para esta conversación?')) return;
+            fetch(`/api/reset/${currentPhone}`, { method: 'POST' })
+                .then(() => {
+                    alert('Bot reiniciado. Enviando mensaje de bienvenida...');
+                    loadChat(currentPhone);
+                });
+        }
+
+        function playNotification() {
+            // Intentar reproducir sonido si el usuario lo permite
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE');
+                audio.volume = 0.3;
+                audio.play();
+            } catch(e) {}
         }
 
         function escapeHtml(text) {
@@ -258,19 +362,11 @@
             return div.innerHTML;
         }
 
-        // WebSocket simulation via polling for new messages
-        let lastMessageCount = 0;
-        setInterval(() => {
-            fetch('/api/stats')
-                .then(r => r.json())
-                .then(stats => {
-                    if (stats.total_messages > lastMessageCount && lastMessageCount > 0) {
-                        addLog('📩 Nuevo mensaje recibido!', 'new');
-                        if (currentPhone) loadChat(currentPhone, currentProfileName);
-                    }
-                    lastMessageCount = stats.total_messages;
-                });
-        }, 3000);
+        function showView(view) {
+            // Placeholder para futuras vistas
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
     </script>
 </body>
 </html>
