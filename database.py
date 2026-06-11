@@ -415,7 +415,10 @@ def get_bot_config() -> Dict:
     
     if row:
         visual = json.loads(row["workflow"]) if row["workflow"] else {}
-        executable = json.loads(row["executable"]) if row.get("executable") else {}
+        try:
+            executable = json.loads(row["executable"]) if row["executable"] else {}
+        except (KeyError, TypeError):
+            executable = {}
         return {
             "visual": visual,
             "executable": executable,
