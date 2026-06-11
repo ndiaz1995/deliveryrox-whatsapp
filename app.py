@@ -161,6 +161,38 @@ def api_save_config():
     return jsonify({"success": True, "start_node": executable.get("start_node")})
 
 
+@app.route("/api/diagnose")
+def api_diagnose():
+    """Diagnóstico completo del bot y conexión WhatsApp."""
+    from config import WHATSAPP_TOKEN, PHONE_NUMBER_ID
+    
+    token_preview = WHATSAPP_TOKEN[:10] + "..." + WHATSAPP_TOKEN[-4:] if WHATSAPP_TOKEN and len(WHATSAPP_TOKEN) > 20 else "NO CONFIGURADO"
+    
+    # Intentar obtener perfil de negocio para verificar token
+    token_valid = False
+    token_error = None
+    if WHATSAPP_TOKEN and PHONE_NUMBER_ID:
+        try:
+            from whatsapp_client import WhatsAppClient
+            client = WhatsAppClient()
+            profile = client.get_business_profile()
+            token_valid = True
+        except Exception as e:
+            token_error = str(e)
+    
+    return jsonify({
+        "bot_start_node": bot.start_node,
+        "bot_nodes_count": len(bot.nodes),
+        "bot_nodes": list(bot.nodes.keys()),
+        "whatsapp_token_configured": bool(WHATSAPP_TOKEN and len(WHATSAPP_TOKEN) > 20),
+        "whatsapp_token_preview": token_preview,
+        "phone_number_id_configured": bool(PHONE_NUMBER_ID and len(PHONE_NUMBER_ID) > 5),
+        "phone_number_id": PHONE_NUMBER_ID,
+        "token_valid": token_valid,
+        "token_error": token_error,
+    })
+
+
 @app.route("/api/health")
 def api_health():
     """Diagnóstico del sistema."""
@@ -312,7 +344,9 @@ def webhook_receive():
                         print(f"💬 [{display_name}] {content}")
 
                         # ===== BOT AUTOMÁTICO =====
+                        print(f"[WEBHOOK] Procesando mensaje de {phone_number}: '{content[:40]}...'")
                         bot_response = bot.process_message(phone_number, content, profile_name)
+                        print(f"[WEBHOOK] Bot response: {bot_response}")
 
                         if bot_response:
                             response_text, _ = bot_response
@@ -324,10 +358,13 @@ def webhook_receive():
                                 content=response_text,
                                 direction="outgoing"
                             )
+                            print(f"[WEBHOOK] Respuesta guardada en DB")
 
                             # Enviar por WhatsApp si tenemos token
                             token = os.getenv("WHATSAPP_TOKEN")
                             phone_id = os.getenv("PHONE_NUMBER_ID")
+                            print(f"[WEBHOOK] Token configured: {bool(token)} (len={len(token) if token else 0})")
+                            print(f"[WEBHOOK] Phone ID configured: {bool(phone_id)}")
                             if token and phone_id:
                                 try:
                                     from whatsapp_client import WhatsAppClient
@@ -336,8 +373,10 @@ def webhook_receive():
                                     print(f"✅ Respuesta enviada a {phone_number}")
                                 except Exception as e:
                                     print(f"❌ Error enviando respuesta: {e}")
+                                    import traceback
+                                    traceback.print_exc()
                             else:
-                                print(f"⚠️  No se envió respuesta a {phone_number}: falta WHATSAPP_TOKEN o PHONE_NUMBER_ID en variables de entorno")
+                                print(f"⚠️  No se envió respuesta a {phone_number}: falta WHATSAPP_TOKEN o PHONE_NUMBER_ID")
 
         print("=" * 60)
         return "OK", 200

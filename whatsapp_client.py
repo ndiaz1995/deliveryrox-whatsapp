@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 from config import WHATSAPP_TOKEN, PHONE_NUMBER_ID
 
 class WhatsAppClient:
@@ -18,13 +19,6 @@ class WhatsAppClient:
     def send_text_message(self, to_number: str, message: str) -> dict:
         """
         Envía un mensaje de texto a un número de WhatsApp.
-        
-        Args:
-            to_number: Número de teléfono en formato internacional (ej: 5215512345678)
-            message: Texto del mensaje
-        
-        Returns:
-            Respuesta de la API de Meta
         """
         url = f"{self.BASE_URL}/{self.phone_number_id}/messages"
         
@@ -41,15 +35,23 @@ class WhatsAppClient:
             }
         }
         
-        print(f"📤 Enviando mensaje a {to_number}...")
+        print(f"[WS-API] ===== ENVIO WHATSAPP =====")
+        print(f"[WS-API] URL: {url}")
+        print(f"[WS-API] Token presente: {bool(self.token)} (len={len(self.token) if self.token else 0})")
+        print(f"[WS-API] Phone ID: {self.phone_number_id}")
+        print(f"[WS-API] Destino: {to_number}")
+        print(f"[WS-API] Mensaje: {message[:60]}...")
+        
         response = requests.post(url, headers=self.headers, json=payload)
         
+        print(f"[WS-API] Status: {response.status_code}")
+        print(f"[WS-API] Respuesta: {response.text[:500]}")
+        
         if response.status_code == 200:
-            print("✅ Mensaje enviado exitosamente!")
+            print("[WS-API] ✅ Mensaje enviado exitosamente!")
             return response.json()
         else:
-            print(f"❌ Error al enviar mensaje: {response.status_code}")
-            print(f"Detalle: {response.text}")
+            print(f"[WS-API] ❌ Error al enviar mensaje: {response.status_code}")
             response.raise_for_status()
     
     def get_business_profile(self) -> dict:
