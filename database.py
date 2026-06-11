@@ -92,6 +92,12 @@ def init_db():
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE bot_config ADD COLUMN executable TEXT")
     
+    # Migrar: agregar columna current_node a conversation_states si no existe
+    try:
+        cursor.execute("SELECT current_node FROM conversation_states LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE conversation_states ADD COLUMN current_node TEXT")
+    
     # Insertar workflow por defecto si no existe
     cursor.execute("SELECT COUNT(*) FROM bot_config")
     if cursor.fetchone()[0] == 0:
