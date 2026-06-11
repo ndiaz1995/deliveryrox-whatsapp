@@ -118,6 +118,27 @@ def api_reset(phone_number):
     return jsonify({"success": True})
 
 
+@app.route("/api/health")
+def api_health():
+    """Diagnóstico del sistema."""
+    token = os.getenv("WHATSAPP_TOKEN")
+    phone_id = os.getenv("PHONE_NUMBER_ID")
+    verify = os.getenv("WEBHOOK_VERIFY_TOKEN")
+    
+    # Verificar si token tiene formato válido (no vacío y largo razonable)
+    token_ok = bool(token and len(token) > 20)
+    phone_ok = bool(phone_id and len(phone_id) > 5)
+    
+    return jsonify({
+        "status": "ok" if (token_ok and phone_ok) else "missing_config",
+        "whatsapp_token_configured": token_ok,
+        "phone_number_id_configured": phone_ok,
+        "webhook_verify_token_configured": bool(verify),
+        "token_length": len(token) if token else 0,
+        "phone_id": phone_id if phone_ok else None,
+    })
+
+
 # ============================================================
 # WEBHOOK - RECIBIR MENSAJES DE META
 # ============================================================
